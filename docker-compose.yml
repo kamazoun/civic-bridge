@@ -1,0 +1,48 @@
+# One command for reviewers: `docker compose up`, then open http://localhost:8000
+#
+# - app:         the Civic Bridge server
+# - ollama:      local AI runtime (models are kept in a named volume)
+# - model-pull:  downloads the model once, then exits; the app works meanwhile
+#                and its AI banner reports progress until the model is ready
+#
+# Settings (all optional, e.g. `CIVIC_BRIDGE_PORT=8080 docker compose up`):
+#   CIVIC_BRIDGE_PORT          host port (default 8000)
+#   CIVIC_BRIDGE_OLLAMA_MODEL  model to pull and use (default gemma3:4b, ~3.3 GB)
+
+services:
+  app:
+    build: .
+    ports:
+      - "${CIVIC_BRIDGE_PORT:-8000}:8000"
+    environment:
+      CIVIC_BRIDGE_OLLAMA_URL: ${CIVIC_BRIDGE_OLLAMA_URL:-http://ollama:11434/api/generate}
+      CIVIC_BRIDGE_OLLAMA_MODEL: ${CIVIC_BRIDGE_OLLAMA_MODEL:-gemma3:4b}
+      # Ollama in Docker has no GPU on most laptops, so allow slow answers.
+      CIVIC_BRIDGE_OLLAMA_TIMEOUT: "240"
+      # Lets the AI banner explain Docker-specific states (e.g. model still downloading).
+      CIVIC_BRIDGE_RUNTIME: docker
+    extra_hosts:
+      # Lets the app reach an Ollama already installed on the host machine.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+
+  model-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      MODEL: ${CIVIC_BRIDGE_OLLAMA_MODEL:-gemma3:4b}
+    entrypoint: ["/bin/sh", "-c", "until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull \"$$MODEL\""]
+    restart: "no"
+
+volumes:
+  ollama-models:

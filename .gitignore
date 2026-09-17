@@ -1,0 +1,39 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.venv/
+venv/
+data/imported_sources/
+
+# Personal pre-presentation notes (not for the public repo)
+last_note_for_user.txt
+
+# Demo-video media: Flow exports, your recordings, and build outputs.
+# The build script (video/build_rough_cut.py) and the two README.txt files stay tracked.
+download/
+download.zip
+video/out/
+video/screens/*
+video/narration/*
+!video/screens/README.txt
+!video/narration/README.txt
+download (2)/
+download (2).zip
+data/state.json
+data/state.json.tmp
+
+# Internal working material (prompts, storyboards, pitch notes, submission builds) — not part of the codebase
+docs/FLOW_*.txt
+docs/GENERATED_IMAGE_REVIEW.md
+docs/IMAGE_BOARD_PLAN.md
+docs/NAME_SHORTLIST.md
+docs/PERSONALIZATION_PITCH_NOTES.md
+docs/PITCH_AND_DEMO_PLAN.md
+docs/PITCH_PROBLEM_FRAMING.md
+docs/VIDEO_STORYBOARD.md
+docs/DEMO_VIDEO_SCRIPT.md
+docs/video/
+video/
+submission/
+build_submission_artifacts.py

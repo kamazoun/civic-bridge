@@ -1,0 +1,21 @@
+.git
+.gitignore
+.DS_Store
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+data/imported_sources/
+submission/
+last_note_for_user.txt
+Dockerfile
+docker-compose.yml
+
+# not needed inside the image
+download/
+download.zip
+video/
+docs/
+.git/
+data/

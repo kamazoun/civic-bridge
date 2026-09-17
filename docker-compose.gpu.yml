@@ -1,0 +1,16 @@
+# Optional GPU mode for Linux machines with an NVIDIA GPU.
+# Needs the NVIDIA driver and the NVIDIA Container Toolkit on the host.
+#
+#   CIVIC_BRIDGE_OLLAMA_MODEL=gemma4 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+#
+# Not supported by Docker Desktop on macOS (no GPU passthrough).
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
