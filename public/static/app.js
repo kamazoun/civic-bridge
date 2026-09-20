@@ -116,7 +116,7 @@ const STRINGS = {
     lands_on_body_unknown: (topic) => `People whose profile lists ${topic} see this record first too.`,
     open_group_arrow: "Open the group →",
     nav_feedback: "My feedback",
-    sidebar_saved_records: "Saved records",
+    sidebar_saved_records: "Latest records",
     sidebar_all_records: (n) => `All ${n} records →`,
     sidebar_review_title: "Review before sharing",
     sidebar_review_body: "Your words stay yours.",
@@ -280,11 +280,13 @@ const STRINGS = {
     choose_area_first_body: "Set a country, region, and locality so the issues, representatives, and public updates match where you live.",
     // Issues
     issue_tracker_eyebrow: "ISSUE TRACKER",
-    issue_tracker_title: "Follow what needs an answer.",
-    issue_tracker_body: "Keep a public source, a clear status, and the next responsible office together.",
+    issue_tracker_title: "Everything on the record for your area.",
+    issue_tracker_body: "Newest first. Notices published by the offices and the reference records, each with its source and the office responsible.",
     issues_near: (n, area) => `${n} issues near ${area}`,
     source_labelled_records: "Source-labelled records for this area",
-    filter_all_issues: "All issues",
+    filter_all_issues: "Everything",
+    filter_notices: "Published notices",
+    filter_reference: "Reference records",
     status_open_question: "Open question",
     status_needs_update: "Needs update",
     status_published_locally: "Published locally",
@@ -758,7 +760,7 @@ const STRINGS = {
     lands_on_body_unknown: (topic) => `Les personnes dont le profil mentionne « ${topic} » voient aussi cette fiche en premier.`,
     open_group_arrow: "Ouvrir le groupe →",
     nav_feedback: "Mes retours",
-    sidebar_saved_records: "Fiches enregistrées",
+    sidebar_saved_records: "Dernières fiches",
     sidebar_all_records: (n) => `Toutes les ${n} fiches →`,
     sidebar_review_title: "Relisez avant de partager",
     sidebar_review_body: "Vos mots vous appartiennent.",
@@ -912,11 +914,13 @@ const STRINGS = {
     choose_area_first_title: "Choisissez d’abord votre zone.",
     choose_area_first_body: "Définissez un pays, une région et une localité pour que les dossiers, représentants et mises à jour publiques correspondent à votre lieu de vie.",
     issue_tracker_eyebrow: "SUIVI DES DOSSIERS",
-    issue_tracker_title: "Suivez ce qui attend une réponse.",
-    issue_tracker_body: "Gardez ensemble une source publique, un statut clair et le prochain bureau responsable.",
+    issue_tracker_title: "Tout ce qui est au dossier pour votre zone.",
+    issue_tracker_body: "Du plus récent au plus ancien. Les avis publiés par les bureaux et les fiches de référence, chacun avec sa source et le bureau responsable.",
     issues_near: (n, area) => `${n} dossiers près de ${area}`,
     source_labelled_records: "Fiches sourcées pour cette zone",
-    filter_all_issues: "Tous les dossiers",
+    filter_all_issues: "Tout",
+    filter_notices: "Avis publiés",
+    filter_reference: "Fiches de référence",
     status_open_question: "Question ouverte",
     status_needs_update: "Mise à jour requise",
     status_published_locally: "Publié localement",
@@ -2171,9 +2175,12 @@ function wireRepresentativeControls() {
 
 function renderIssues() {
   if (!state.dashboard.area || !state.dashboard.country) return renderAreaRequired();
-  const filters = ["All issues", "Open question", "Needs update"];
-  const filterLabels = { "All issues": t("filter_all_issues"), "Open question": t("status_open_question"), "Needs update": t("status_needs_update") };
-  const visible = rankForProfile(state.issueFilter === "All issues" ? state.issues : state.issues.filter((issue) => issue.status === state.issueFilter));
+  // Issues is the complete list, newest first, always — relevance ranking is
+  // for the Overview headlines only, so nothing can "disappear" here.
+  const filters = ["All issues", "notices", "reference"];
+  const filterLabels = { "All issues": t("filter_all_issues"), notices: t("filter_notices"), reference: t("filter_reference") };
+  const isNotice = (issue) => String(issue.id || "").startsWith("notice-");
+  const visible = state.issueFilter === "notices" ? state.issues.filter(isNotice) : state.issueFilter === "reference" ? state.issues.filter((issue) => !isNotice(issue)) : state.issues;
   app.innerHTML = `
     <section class="page-head compact-head"><div><span class="eyebrow">${t("issue_tracker_eyebrow")}</span><h1>${t("issue_tracker_title")}</h1><p>${t("issue_tracker_body")}</p></div><div class="head-note"><strong>${t("issues_near", state.issues.length, esc(state.dashboard.area || ""))}</strong><span>${t("source_labelled_records")}</span></div></section>
     <div class="filter-row issue-filters">${filters.map((filter) => `<button class="filter-chip ${state.issueFilter === filter ? "selected" : ""}" data-issue-filter="${esc(filter)}">${esc(filterLabels[filter])}</button>`).join("")}</div>
