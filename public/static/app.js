@@ -1773,10 +1773,9 @@ async function authRequest(path, payload) {
 function showAuthModal(mode = "login") {
   const root = document.querySelector("#modal-root");
   if (!root) return;
-  const roleOptions = ["resident", "organizer", "office"].map((key) => `<option value="${key}">${t(ROLE_LABEL_KEYS[key][1])}</option>`).join("");
+  const roleOptions = ["resident", "office"].map((key) => `<option value="${key}">${t(ROLE_LABEL_KEYS[key][1])}</option>`).join("");
   const demoAccounts = [
     { username: "resident", label: t("account_resident_label"), role: t("account_resident_role"), initial: "R" },
-    { username: "organizer", label: t("account_organizer_label"), role: t("account_organizer_role"), initial: "C" },
     { username: "office", label: t("account_office_label"), role: t("account_office_role"), initial: "O" },
   ];
   root.innerHTML = `<div class="modal-backdrop" data-close-modal><section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><div class="modal-top"><div><span class="eyebrow">${t("modal_participation")}</span><h2 id="auth-title">${t("modal_choose_account")}</h2></div><button class="modal-close" data-close-modal aria-label="${t("close")}">×</button></div><p class="modal-copy">${t("modal_choose_account_body")}</p>
@@ -2067,7 +2066,6 @@ function initLocationLeafletMap() {
 function roleWorkspace() {
   if (!state.user) return `<section class="role-banner resident"><span class="eyebrow">${t("role_public_eyebrow")}</span><strong>${t("role_public_title")}</strong><span>${t("role_public_body")}</span></section>`;
   if (userRole() === "office") return `<section class="role-banner office"><span class="eyebrow">${t("role_office_eyebrow")}</span><strong>${t("role_office_title")}</strong><span>${t("role_office_body")}</span><button class="secondary-btn" data-route="representatives">${t("role_office_button")}</button></section>`;
-  if (userRole() === "organizer") return `<section class="role-banner organizer"><span class="eyebrow">${t("role_organizer_eyebrow")}</span><strong>${t("role_organizer_title")}</strong><span>${t("role_organizer_body")}</span><button class="secondary-btn" data-route="groups">${t("role_organizer_button")}</button></section>`;
   return `<section class="role-banner resident"><span class="eyebrow">${t("role_resident_eyebrow")}</span><strong>${t("role_resident_title")}</strong><span>${t("role_resident_body")}</span><button class="secondary-btn" data-route="issues">${t("role_resident_button")}</button></section>`;
 }
 
@@ -2101,11 +2099,6 @@ function renderHome() {
     { label: t("metric_commitments"), value: String(totals.records), detail: t("metric_commitments_detail"), tone: "blue" },
     { label: t("metric_response_rate"), value: areaResponseRate, detail: t("metric_response_rate_detail"), tone: "green" },
     { label: t("metric_pending_review"), value: String(totals.replies), detail: t("metric_pending_review_detail"), tone: "violet" },
-  ] : userRole() === "organizer" ? [
-    { label: t("metric_open_questions"), value: String(Math.max(0, totals.questions - totals.replies)), detail: t("metric_open_questions_area_detail"), tone: "ochre" },
-    { label: t("metric_community_pulse"), value: areaPulse, detail: t("metric_community_pulse_detail"), tone: "blue" },
-    { label: t("metric_channels"), value: "4", detail: t("metric_channels_detail"), tone: "green" },
-    { label: t("metric_sources_checked"), value: String(totals.records), detail: t("metric_sources_checked_detail"), tone: "violet" },
   ] : baseMetrics;
   const lead = hasArea ? visibleIssues[0] : null;
   const rest = hasArea ? visibleIssues.slice(1, 3) : [];

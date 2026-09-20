@@ -622,7 +622,6 @@ USERS_LOCK = threading.Lock()
 SESSIONS: dict[str, str] = {}
 ROLE_LABELS = {
     "resident": {"en": "Resident", "fr": "Résident(e)"},
-    "organizer": {"en": "Community organizer", "fr": "Organisateur communautaire"},
     "office": {"en": "Representative office", "fr": "Bureau représentatif"},
 }
 COMMENTS: dict[str, list[dict[str, Any]]] = {}

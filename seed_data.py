@@ -325,9 +325,8 @@ def seed(app: dict[str, Any]) -> None:
         delta = rng.uniform(end_days_ago, start_days_ago)
         return now - timedelta(days=delta, hours=rng.uniform(0, 12))
 
-    # Demo accounts: one per role, work in every country.
+    # Demo accounts: a resident and an office account, usable in every country.
     create_user("resident", DEMO_PASSWORD, "Demo resident", "resident", user_id="resident-demo")
-    create_user("organizer", DEMO_PASSWORD, "Demo community organizer", "organizer", user_id="organizer-demo")
     create_user("office", DEMO_PASSWORD, "Demo representative office", "office", user_id="office-demo")
 
     for country, cfg in COUNTRIES.items():
@@ -344,7 +343,7 @@ def seed(app: dict[str, Any]) -> None:
             base = f"{first}.{last}".lower().replace("’", "").replace("'", "").replace("-", "")
             username = base if base not in used else f"{base}{rng.randint(2, 99)}"
             used.add(username)
-            role = "organizer" if rng.random() < 0.12 else "resident"
+            role = "resident"
             user = create_user(username, DEMO_PASSWORD, f"{first} {last}", role, country, rng.choice(cfg["areas"]))
             profession_index = rng.randrange(len(PROFESSIONS[lang]))
             user["profession"] = PROFESSIONS[lang][profession_index]

@@ -186,7 +186,7 @@ All configuration is by environment variable.
 
 **Community.** Independent *Helpful* / *Needs more clarity* toggles, comments, resident-authored perspectives, share. Community data is scoped per country, so the same reference record carries different conversations in Lomé and Nairobi.
 
-**Accounts.** Username + password sign-up and sign-in (PBKDF2-SHA256, server-side session tokens, standard library only — no e-mail, no external identity provider). Three roles: resident, community organiser, representative office. Publishing notices and posting a right of reply require an office account. Demo accounts `resident`, `organizer` and `office` (password `civic2026`) sign in with one click; the seeded office accounts per country are listed in [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
+**Accounts.** Username + password sign-up and sign-in (PBKDF2-SHA256, server-side session tokens, standard library only — no e-mail, no external identity provider). Two roles: resident and representative office. Publishing notices and posting a right of reply require an office account. Demo accounts `resident` and `office` (password `civic2026`) sign in with one click; the seeded office accounts per country are listed in [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
 
 **Seeded platform.** On first start `seed_data.py` populates every country with about 50 accounts, 45–55 published notices per country dated over the previous six months, comments, votes, perspectives, feedback drafts, office replies and shares — deterministic, so every fresh deployment shows the same living platform. Everything seeded is fictional and labelled as such.
 
@@ -268,7 +268,7 @@ All endpoints return JSON. Mutating endpoints identify the account by a session 
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/auth/register` | `username`, `password`, `display_name`, `role` (`resident` / `organizer` / `office`) → `token`, `user` |
+| POST | `/api/auth/register` | `username`, `password`, `display_name`, `role` (`resident` / `office`) → `token`, `user` |
 | POST | `/api/auth/login` | `username`, `password` → `token`, `user` |
 | POST | `/api/auth/logout` | Invalidate a `token` |
 | GET | `/api/auth/me?token=` | Current account, or 401 |
