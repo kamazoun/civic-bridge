@@ -1935,6 +1935,14 @@ class DemoHandler(BaseHTTPRequestHandler):
             payload = path.read_bytes()
         except FileNotFoundError:
             return self.send_error_json("File not found", HTTPStatus.NOT_FOUND)
+        if content_type.startswith("text/html"):
+            # Version every static asset URL with its file's mtime so a browser
+            # can never keep running an old script or stylesheet after a deploy.
+            def versioned(match: re.Match[str]) -> str:
+                asset = PUBLIC / match.group(1).lstrip("/")
+                stamp = int(asset.stat().st_mtime) if asset.exists() else 0
+                return f'{match.group(0)}?v={stamp}'
+            payload = re.sub(r'/static/[A-Za-z0-9_./-]+\.(?:js|css)', versioned, payload.decode("utf-8")).encode("utf-8")
         self.send_bytes(payload, content_type)
 
 
