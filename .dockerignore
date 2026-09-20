@@ -8,7 +8,7 @@ __pycache__/
 venv/
 data/imported_sources/
 submission/
-last_note_for_user.txt
+private_notes.txt
 Dockerfile
 docker-compose.yml
 

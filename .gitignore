@@ -7,7 +7,7 @@ venv/
 data/imported_sources/
 
 # Personal pre-presentation notes (not for the public repo)
-last_note_for_user.txt
+private_notes.txt
 
 # Demo-video media: Flow exports, your recordings, and build outputs.
 # The build script (video/build_rough_cut.py) and the two README.txt files stay tracked.

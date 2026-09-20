@@ -1002,6 +1002,66 @@ def ollama_explain(source_text: str, title: str, language: str) -> dict[str, Any
         return None
 
 
+# --- Profile interpretation -------------------------------------------------
+# A resident describes what they do in their own words and language ("je
+# vends du poisson au marché de Bè", "mo n ta ẹran" …). The local model turns
+# that into a normalised label plus a small, readable weight per civic topic.
+# The weights are what the client uses to order the feed — nothing else about
+# the description is kept, and the result is cached so the model runs once per
+# distinct description.
+CIVIC_TOPICS: dict[str, str] = {
+    "water": "water supply, boreholes, water cuts", "roads": "roads, market access roads, diversions", "health": "clinics, vaccination, health alerts, medicines",
+    "education": "schools, enrolment, school supplies", "energy": "electricity, load shedding, power cuts", "works": "public works, drains, construction sites",
+    "markets": "market days, stall fees, market management", "registry": "civil registry, birth certificates", "safety": "fire, security, emergencies",
+    "permits": "building permits, business licences", "transport": "bus terminals, transport fares, moto-taxis", "sanitation": "waste collection, toilets, hygiene",
+    "budget": "public budget, participatory budget, spending", "flooding": "rains, floods, risk zones", "employment": "jobs, training programmes, youth schemes",
+    "land": "land titles, plots, land regularisation", "exams": "national examinations, results", "tax": "taxes, levies, business fees",
+    "identity": "national ID cards, enrolment", "elections": "voter registration, elections", "meeting": "public meetings, consultations", "services": "street lighting, municipal services",
+}
+PROFILE_CACHE: dict[str, dict[str, Any]] = {}
+PROFILE_CACHE_LOCK = threading.Lock()
+
+
+def interpret_profession(text: str, language: str) -> dict[str, Any] | None:
+    key = " ".join(text.lower().split())[:200]
+    with PROFILE_CACHE_LOCK:
+        if key in PROFILE_CACHE:
+            return PROFILE_CACHE[key]
+    if not OLLAMA_MODEL or not key:
+        return None
+    schema = {
+        "type": "object",
+        "properties": {
+            "label_en": {"type": "string"}, "label_fr": {"type": "string"},
+            "topics": {"type": "object", "properties": {topic: {"type": "integer", "minimum": 0, "maximum": 3} for topic in CIVIC_TOPICS}},
+        },
+        "required": ["label_en", "label_fr", "topics"],
+    }
+    topic_lines = "\n".join(f"- {topic}: {desc}" for topic, desc in CIVIC_TOPICS.items())
+    prompt = (
+        "A resident of a West or East African city describes their occupation or situation, possibly in French, English or a local language "
+        "(Éwé, Yorùbá, Kiswahili, Dioula, Dagbani, Hausa, Twi ...). Understand it, give a short neutral occupation label in English and in French, "
+        "and rate how relevant each civic topic is to someone in that situation: 3 = directly affects their livelihood or daily work, "
+        "2 = often matters, 1 = sometimes, 0 = no particular link. Most topics should be 0. Be literal and practical; do not moralise.\n\n"
+        f"TOPICS:\n{topic_lines}\n\nDESCRIPTION: {key}"
+    )
+    body = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False, "format": schema}).encode("utf-8")
+    request = urllib.request.Request(OLLAMA_URL, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=OLLAMA_TIMEOUT or 30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        result = json.loads(str(payload.get("response", "")))
+        topics = {topic: max(0, min(3, int(result.get("topics", {}).get(topic, 0) or 0))) for topic in CIVIC_TOPICS}
+        if not any(topics.values()):
+            return None
+        interpreted = {"text": key, "label_en": str(result.get("label_en", "")).strip()[:60] or key, "label_fr": str(result.get("label_fr", "")).strip()[:60] or key, "topics": {k: v for k, v in topics.items() if v}, "model": OLLAMA_MODEL}
+    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    with PROFILE_CACHE_LOCK:
+        PROFILE_CACHE[key] = interpreted
+    return interpreted
+
+
 def build_explained_record(source_text: str, title: str, origin_label: str, area: dict[str, str], is_french: bool) -> dict[str, Any]:
     """Turn arbitrary user-submitted text into a full, review-labelled record.
 
@@ -1399,6 +1459,14 @@ class DemoHandler(BaseHTTPRequestHandler):
                 SESSIONS.pop(str(data.get("token", "")), None)
             save_state()
             return self.send_json({"ok": True})
+        if parsed.path == "/api/profile/interpret":
+            text = " ".join(str(data.get("text", "")).split())
+            if len(text) < 2:
+                return self.send_error_json("Describe what you do first.")
+            result = interpret_profession(text, str(data.get("language", "English")))
+            if not result:
+                return self.send_error_json("Profile interpretation needs a connected local Ollama model (CIVIC_BRIDGE_OLLAMA_MODEL).", HTTPStatus.SERVICE_UNAVAILABLE)
+            return self.send_json(result)
         if parsed.path == "/api/voice/transcribe":
             preset = data.get("preset", "")
             transcript = data.get("text", "") or (

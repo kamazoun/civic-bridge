@@ -598,7 +598,13 @@ const STRINGS = {
     settings_scope_note: "This applies to this browser on this device. Sign in and it stays with your local account here; without signing in, it still applies for this session.",
     settings_name_label: "Your name (optional)",
     settings_name_placeholder: "How should we address you?",
-    settings_profession_label: "Profession",
+    settings_profession_text_label: "What do you do? (any language)",
+    settings_profession_text_placeholder: "e.g. I sell fish at Bè market · je suis maçon à Abobo · mo n ta ẹran",
+    speak_profession: "Say it instead of typing",
+    profession_interpreting: "Understanding…",
+    profession_understood: (label, topics) => `Understood as: ${label} · what we will surface first: ${topics}.`,
+    profession_ai_unavailable: "The local AI is not connected, so the description could not be interpreted. Pick from the list below instead.",
+    settings_profession_label: "Or pick from the list",
     settings_profession_placeholder: "Choose a profession",
     settings_age_label: "Age range (optional)",
     settings_age_placeholder: "Prefer not to say",
@@ -1143,7 +1149,13 @@ const STRINGS = {
     settings_scope_note: "Ceci s'applique à ce navigateur sur cet appareil. Si vous vous connectez, cela reste avec votre compte local ici ; sans connexion, cela s'applique quand même pour cette session.",
     settings_name_label: "Votre nom (optionnel)",
     settings_name_placeholder: "Comment devons-nous vous appeler ?",
-    settings_profession_label: "Profession",
+    settings_profession_text_label: "Que faites-vous ? (dans la langue de votre choix)",
+    settings_profession_text_placeholder: "ex. je vends du poisson au marché de Bè · I am a mason in Abobo · mo n ta ẹran",
+    speak_profession: "Le dire au lieu de l’écrire",
+    profession_interpreting: "Compréhension en cours…",
+    profession_understood: (label, topics) => `Compris comme : ${label} · ce que nous mettrons en avant : ${topics}.`,
+    profession_ai_unavailable: "L’IA locale n’est pas connectée, la description n’a pas pu être interprétée. Choisissez dans la liste ci-dessous.",
+    settings_profession_label: "Ou choisissez dans la liste",
     settings_profession_placeholder: "Choisissez une profession",
     settings_age_label: "Tranche d'âge (optionnel)",
     settings_age_placeholder: "Je préfère ne pas dire",
@@ -1244,20 +1256,38 @@ const AGE_TOPIC_WEIGHTS = {
   "45-59": { land: 1, tax: 1, budget: 1, health: 1 }, "60plus": { health: 2, registry: 1, water: 1, identity: 1 },
 };
 
+const TOPIC_NAMES = {
+  en: { water: "water", roads: "roads", health: "health", education: "education", energy: "electricity", works: "public works", markets: "markets", registry: "civil registry", safety: "safety", permits: "permits", transport: "transport", sanitation: "sanitation", budget: "budget", flooding: "flooding", employment: "jobs & training", land: "land", exams: "exams", tax: "taxes & fees", identity: "ID cards", elections: "elections", meeting: "public meetings", services: "municipal services" },
+  fr: { water: "eau", roads: "routes", health: "santé", education: "éducation", energy: "électricité", works: "travaux", markets: "marchés", registry: "état civil", safety: "sécurité", permits: "permis", transport: "transport", sanitation: "assainissement", budget: "budget", flooding: "inondations", employment: "emploi & formation", land: "foncier", exams: "examens", tax: "impôts & taxes", identity: "pièces d’identité", elections: "élections", meeting: "réunions publiques", services: "services municipaux" },
+};
+function topicNames(weights) {
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  return Object.entries(weights || {}).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([topic]) => names[topic] || topic).join(" · ");
+}
+
 function issueTopic(issue) {
   const haystack = `${issue.id || ""} ${issue.type || ""} ${issue.priority || ""} ${issue.category || ""}`.toLowerCase();
   for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) if (keywords.some((word) => haystack.includes(word))) return topic;
   return "";
 }
 
+// A profile is either a free-text description interpreted by the local model
+// (topicWeights + a label in both languages) or a pick from the list.
+const hasProfession = () => Boolean(state.preferences.topicWeights || state.preferences.profession);
+function professionLabel() {
+  if (state.preferences.topicWeights && state.preferences.professionLabel) return state.preferences.professionLabel[uiLang()] || state.preferences.professionLabel.en || "";
+  if (state.preferences.profession) return t(PROFESSIONS.find((item) => item.id === state.preferences.profession)?.key || "profession_other");
+  return "";
+}
 function professionWeight(issue) {
   const topic = issueTopic(typeof issue === "string" ? { id: issue } : issue);
   if (!topic) return 0;
-  return ((PROFESSION_TOPIC_WEIGHTS[state.preferences.profession] || {})[topic] || 0) + ((AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0);
+  const table = state.preferences.topicWeights || PROFESSION_TOPIC_WEIGHTS[state.preferences.profession] || {};
+  return (table[topic] || 0) + ((AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0);
 }
 
 function rankForProfile(issues) {
-  if (!state.preferences.profession && !state.preferences.age) return issues;
+  if (!hasProfession() && !state.preferences.age) return issues;
   return issues
     .map((issue, index) => ({ issue, index, score: professionWeight(issue) }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
@@ -1526,7 +1556,7 @@ function setUser(user, created = false) {
     state.followedRepresentatives = new Set(saved || state.representatives.filter((rep) => rep.followed).map((rep) => rep.id));
   } catch (error) { /* use defaults */ }
   loadPreferences();
-  if (!state.preferences.profession && !state.preferences.name && (guestPreferences.profession || guestPreferences.name)) {
+  if (!hasProfession() && !state.preferences.name && (guestPreferences.profession || guestPreferences.topicWeights || guestPreferences.name)) {
     state.preferences = { ...state.preferences, ...guestPreferences };
     persistPreferences();
   }
@@ -1669,7 +1699,7 @@ function renderSidebar() {
   const areaHolder = document.querySelector("#sidebar-area");
   const hasArea = Boolean(state.dashboard.area && state.dashboard.country);
   if (areaHolder) {
-    const professionLabel = state.preferences.profession ? t(PROFESSIONS.find((item) => item.id === state.preferences.profession)?.key || "profession_other") : "";
+    const professionLabelText = professionLabel();
     areaHolder.innerHTML = `
       <button class="sidebar-area-card" data-route="locations">
         <span class="sidebar-area-eyebrow">${hasArea ? t("location_set") : t("location_needed")}</span>
@@ -1677,7 +1707,7 @@ function renderSidebar() {
         ${hasArea ? `<small>${esc(state.dashboard.region || "")}${state.dashboard.country ? ` · ${esc(state.dashboard.country)}` : ""}</small>` : ""}
         <span class="sidebar-area-action">${hasArea ? t("change_location") : t("choose_location")} →</span>
       </button>
-      ${state.user ? `<div class="sidebar-account-card"><span class="account-avatar">${esc(state.user.initial || "R")}</span><div><strong>${esc(state.user.label)}</strong>${professionLabel ? `<small>${esc(professionLabel)}</small>` : ""}</div></div>` : ""}
+      ${state.user ? `<div class="sidebar-account-card"><span class="account-avatar">${esc(state.user.initial || "R")}</span><div><strong>${esc(state.user.label)}</strong>${professionLabelText ? `<small>${esc(professionLabelText)}</small>` : ""}</div></div>` : ""}
     `;
   }
   const holder = document.querySelector("#sidebar-records");
@@ -1858,7 +1888,7 @@ function renderHome() {
         ` : ""}
       </div>
       <aside class="news-rail">
-        <article class="rail-widget"><span class="eyebrow">${state.preferences.profession ? t("recommended_eyebrow") : t("your_area_eyebrow")}</span><h3>${state.preferences.profession ? t("sorted_for_profile", esc(t(PROFESSIONS.find((item) => item.id === state.preferences.profession)?.key || "profession_other"))) : (hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_location"))}</h3><div class="rail-stat-row">${metrics.slice(0, 4).map((metric) => `<div class="rail-stat"><strong>${esc(metric.value)}</strong><span>${esc(metric.label)}</span></div>`).join("")}</div></article>
+        <article class="rail-widget"><span class="eyebrow">${hasProfession() ? t("recommended_eyebrow") : t("your_area_eyebrow")}</span><h3>${hasProfession() ? t("sorted_for_profile", esc(professionLabel())) : (hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_location"))}</h3><div class="rail-stat-row">${metrics.slice(0, 4).map((metric) => `<div class="rail-stat"><strong>${esc(metric.value)}</strong><span>${esc(metric.label)}</span></div>`).join("")}</div></article>
         <article class="rail-widget"><span class="eyebrow">${t("area_view_eyebrow")}</span><h3>${hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_area_see_map")}</h3>${hasArea ? `<div class="language-row">${(state.dashboard.hierarchy || []).filter((level) => level !== "All levels" && level !== "Tous les niveaux").map((level) => `<span class="language-chip">${esc(level)}</span>`).join("")}</div>` : `<p class="panel-intro" style="margin:0">${t("home_body_no_area")}</p>`}<button class="text-btn" style="margin-top:10px" data-route="locations">${hasArea ? t("change_area_arrow") : t("choose_area_arrow")}</button></article>
         <article class="rail-widget"><span class="eyebrow">${t("watchlist_eyebrow")}</span><h3>${t("watchlist_title")}</h3><div class="watch-list">${hasArea ? visibleRepresentatives.slice(0, 3).map((rep) => `<button class="watch-row" data-route="representatives"><span class="avatar-mini">${esc(rep.level.slice(0, 1))}</span><span><strong>${esc(representativeName(rep))}</strong><small>${esc(representativeLocality(rep))}</small></span><span class="watch-arrow">↗</span></button>`).join("") : `<div class="empty-state">${t("watchlist_empty")}</div>`}</div><button class="text-btn" style="margin-top:8px" data-route="representatives">${t("view_all_arrow")}</button></article>
         <article class="rail-widget"><span class="eyebrow">${t("language_access_eyebrow")}</span><h3>${t("language_access_title")}</h3><div class="language-row">${(state.dashboard.languages || []).map((language, index) => `<span class="language-chip ${index === 0 ? "selected" : ""}">${esc(language)}</span>`).join("")}</div><button class="text-btn" style="margin-top:8px" data-route="channels">${t("explore_channels_arrow")}</button></article>
@@ -2193,6 +2223,9 @@ function renderSettings() {
       <article class="panel">
         <label class="form-label" for="pref-name">${t("settings_name_label")}</label>
         <input id="pref-name" class="feedback-select" placeholder="${t("settings_name_placeholder")}" value="${esc(p.name || "")}" />
+        <label class="form-label" for="pref-profession-text">${t("settings_profession_text_label")}</label>
+        <div class="profession-row"><input id="pref-profession-text" class="feedback-select" maxlength="200" placeholder="${t("settings_profession_text_placeholder")}" value="${esc(p.professionText || "")}" /><button type="button" class="secondary-btn mic-btn" id="pref-profession-mic" aria-label="${t("speak_profession")}" title="${t("speak_profession")}">🎤</button></div>
+        <p class="profile-understood" id="profession-understood">${p.topicWeights ? t("profession_understood", esc(professionLabel()), esc(topicNames(p.topicWeights))) : ""}</p>
         <label class="form-label" for="pref-profession">${t("settings_profession_label")}</label>
         <select id="pref-profession" class="feedback-select"><option value="">${t("settings_profession_placeholder")}</option>${PROFESSION_GROUPS.map((group) => `<optgroup label="${esc(t(group.key))}">${group.ids.map((id) => `<option value="${id}" ${p.profession === id ? "selected" : ""}>${esc(t(`profession_${id}`))}</option>`).join("")}</optgroup>`).join("")}</select>
         <label class="form-label" for="pref-age">${t("settings_age_label")}</label>
@@ -2221,7 +2254,36 @@ function wireSettingsForm() {
   const name = document.querySelector("#pref-name");
   if (name) name.addEventListener("change", () => save({ name: name.value.trim() }));
   const profession = document.querySelector("#pref-profession");
-  if (profession) profession.addEventListener("change", () => save({ profession: profession.value }));
+  if (profession) profession.addEventListener("change", () => { save({ profession: profession.value, professionText: "", professionLabel: null, topicWeights: null }); const understood = document.querySelector("#profession-understood"); if (understood) understood.textContent = ""; });
+  const professionText = document.querySelector("#pref-profession-text");
+  const understood = document.querySelector("#profession-understood");
+  const interpret = async () => {
+    const text = professionText.value.trim();
+    if (!text) { save({ professionText: "", professionLabel: null, topicWeights: null }); understood.textContent = ""; return; }
+    understood.textContent = t("profession_interpreting");
+    try {
+      const response = await fetch("/api/profile/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language: uiLang() === "fr" ? "Français" : "English" }) });
+      const data = await response.json();
+      if (!response.ok) { understood.textContent = t("profession_ai_unavailable"); return; }
+      save({ professionText: text, professionLabel: { en: data.label_en, fr: data.label_fr }, topicWeights: data.topics, profession: "" });
+      if (profession) profession.value = "";
+      understood.textContent = t("profession_understood", professionLabel(), topicNames(data.topics));
+    } catch (error) { understood.textContent = t("profession_ai_unavailable"); }
+  };
+  if (professionText) professionText.addEventListener("change", interpret);
+  const mic = document.querySelector("#pref-profession-mic");
+  if (mic) mic.addEventListener("click", () => {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) return showToast(t("avatar_unsupported"));
+    const recognizer = new Recognition();
+    recognizer.lang = speechLangCode(state.preferences.language || (state.dashboard.languages || ["English"])[0]);
+    recognizer.interimResults = false;
+    mic.classList.add("listening");
+    recognizer.onresult = (event) => { professionText.value = event.results[0][0].transcript; interpret(); };
+    recognizer.onerror = (event) => { if (event.error === "not-allowed" || event.error === "service-not-allowed") showToast(t("avatar_mic_denied")); };
+    recognizer.onend = () => mic.classList.remove("listening");
+    try { recognizer.start(); } catch (error) { mic.classList.remove("listening"); }
+  });
   const age = document.querySelector("#pref-age");
   if (age) age.addEventListener("change", () => save({ age: age.value }));
   const mode = document.querySelector("#pref-mode");

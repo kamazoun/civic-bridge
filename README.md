@@ -154,7 +154,7 @@ All configuration is by environment variable.
 
 **Location and language.** Area is set from browser location (reverse geocoding) or chosen from a map. Interface language and translation targets follow the country.
 
-**Personalisation.** Profession-based ranking through a readable weight table (`PROFESSION_TOPIC_WEIGHTS` in `public/static/app.js`), preferred language with automatic translation on open, read-or-listen preference, age range. Preferences are stored per account in the browser.
+**Personalisation.** A resident describes what they do in their own words and language — typed or spoken ("je vends du poisson au marché de Bè", "mo n ta ẹran ni ọja", "boda boda rider in Kasarani"). The local model turns that into a neutral occupation label (EN/FR) and a small weight per civic topic (`POST /api/profile/interpret`, topics in `CIVIC_TOPICS`), which is shown back to the user ("Understood as: fish vendor · markets, roads, sanitation…"). Age range adds a life-stage weight (18–29: jobs, ID, elections; 30–44: land, permits, tax…). The feed is ordered by those weights — readable, editable, no black box. Without a model, a 40-entry grouped profession list with the same weight tables (`PROFESSION_TOPIC_WEIGHTS` in `public/static/app.js`) is the fallback. Only the weights and label are kept; the description itself is not sent anywhere.
 
 **Representatives.** A four-level institutional hierarchy per country using its own administrative vocabulary. Each office has a profile whose statistics — records on file, sourced records, questions received, office replies, response rate, community pulse, last activity — are computed live from activity on the platform (`representative_stats` in `app.py`), a track record, a focus area, follow/watchlist, and a labelled right of reply that only office accounts can post. Portraits resolve per country and level from `public/static/images/reps/{country}-{level}.jpeg`.
 
@@ -300,6 +300,7 @@ All endpoints return JSON. Mutating endpoints identify the account by a session 
 | POST | `/api/feedback` | Save a draft for review |
 | GET | `/api/feedback` | Saved drafts |
 | POST | `/api/sources/explain` | Text, URL, or base64 PDF → new record |
+| POST | `/api/profile/interpret` | Free-text occupation (any language) → label EN/FR + topic weights (local model; 503 without one) |
 | POST | `/api/voice/transcribe` | Deterministic sample transcript |
 
 **Public Information Portal**
