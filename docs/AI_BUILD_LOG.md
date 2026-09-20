@@ -18,7 +18,7 @@ Representative sessions, in order:
 | Date | Outcome | How AI was used |
 |---|---|---|
 | 17 Sep | Platform skeleton: records with facts/unknowns, five country contexts, FR/EN interface, Ollama translation, publisher portal | Generated from a written product spec; iterated visually in the browser |
-| 18 Sep | Explain a source (text / URL / PDF), voice avatar, personalisation, README as an engineering document | Model proposed the dependency-free PDF text extraction; the schema-constrained JSON prompts were designed together |
+| 18 Sep | Explain a source (text / URL / PDF), read-aloud and dictation, personalisation, README as an engineering document | Model proposed the dependency-free PDF text extraction; the schema-constrained JSON prompts were designed together |
 | 19 Sep | Twenty per-country portraits mapped from a Flow export by wardrobe colour; 640 px web versions | Claude Code viewed each image, matched it to its prompt and renamed/resized |
 | 20 Sep | Representative statistics computed from platform activity instead of hard-coded numbers | Model audited where numbers came from, proposed the derivation, implemented `representative_stats` |
 | 20 Sep | Accounts (PBKDF2, sessions, roles), JSON persistence, `seed_data.py` with ~250 accounts, ~240 notices and ~1,000 comments across five countries | Seed content (notice topics, resident comments, office replies in FR/EN with local neighbourhoods and names) written with the model; volumes and timelines verified against the API |

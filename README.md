@@ -178,7 +178,7 @@ All configuration is by environment variable.
 
 **Translation.** Performed by the local model under a JSON schema so facts and unknowns stay separate in the translated output. A fast malformed response is retried once; a slow failure is not. Every translation is labelled *machine translation — not yet reviewed*, with the original one click away.
 
-**Voice.** *Listen* uses Web Speech synthesis, with per-language voice detection (`SPEECH_LANG_CODES`). The voice assistant on the Feedback tab uses Web Speech recognition to capture a spoken question and feed it into a structured draft (facts, unknowns, next step, message) that stays marked for review.
+**Voice — not an assistant.** Two buttons, nothing that talks back. *Read this record to me* uses the phone's own speech synthesis with per-language voice detection (`SPEECH_LANG_CODES`, and an honest message when a language has no installed voice). *Say your question instead of typing* uses speech recognition to put the resident's spoken words into the question box — the question then goes to a human office through the same path as a typed one. No conversational agent exists in the product; the local model only rewrites, translates and extracts, and every output it produces is labelled for review.
 
 **Access channels.** Subscriptions by WhatsApp, SMS, email, and voice call, plus community join cards. Records carry per-channel wording (`web`, `voice`, `text`).
 

@@ -84,6 +84,7 @@ const HELP = {
     understood: "The app's reading of what you typed, turned into topics from a fixed list. It is a guess: remove or add topics; your edit always wins. Nothing sensitive is kept.",
     groups: "A group is everyone in your country whose profile lists the same topic. You see a count and a conversation, never a member list.",
     anonymous: "Posts as “A resident of <your area> (<your first topic>)”. Your account is never attached to the post.",
+    voice: "Not an assistant: nothing talks back. One button reads the record aloud (your phone's own voices), the other turns your spoken words into text in the box. Your question still goes to a human office.",
     questions: "Questions residents sent to this office through the record. They are public, so the office's answer — or its silence — is visible to everyone. The office replies with its right of reply.",
   },
   fr: {
@@ -101,6 +102,7 @@ const HELP = {
     understood: "La lecture que fait l’application de ce que vous avez tapé, traduite en thèmes d’une liste fixe. C’est une hypothèse : retirez ou ajoutez des thèmes ; votre correction l’emporte toujours. Rien de sensible n’est conservé.",
     groups: "Un groupe, c’est toutes les personnes de votre pays dont le profil mentionne le même thème. Vous voyez un nombre et une conversation, jamais une liste de membres.",
     anonymous: "Publie en tant que « Un·e résident·e de <votre zone> (<votre premier thème>) ». Votre compte n’est jamais attaché au message.",
+    voice: "Pas un assistant : rien ne vous répond. Un bouton lit la fiche à voix haute (les voix de votre téléphone), l’autre transforme vos mots dits en texte dans le champ. Votre question va toujours à un bureau humain.",
     questions: "Les questions que les résidents ont envoyées à ce bureau via la fiche. Elles sont publiques : la réponse du bureau — ou son silence — est visible de tous. Le bureau répond par son droit de réponse.",
   },
 };
@@ -522,12 +524,12 @@ const STRINGS = {
     draft_feedback_arrow: "Draft feedback →",
     // Feedback tab
     your_words_first_eyebrow: "YOUR WORDS FIRST",
-    your_words_first_title: "Turn a voice note into a reviewable civic question.",
-    your_words_first_body: "The draft is a starting point. Read it, change it, and decide whether to keep it as a draft.",
-    audio_access: "Audio access",
-    audio_access_detail: " · radio + basic phone",
+    your_words_first_title: "Your question, in your words — typed or spoken.",
+    your_words_first_body: "Say or type what you want to know. The draft that follows is a starting point: read it, change it, then send it to the office. No machine answers it.",
+    audio_access: "Listen and speak",
+    audio_access_detail: " · for low literacy, low light, busy hands",
     use_sample: "▶ Use sample",
-    voice_caption: "Hear a short explanation on a shared radio or keypad phone, then record in your own words.",
+    voice_caption: "The record is read aloud by your phone; your spoken words go into the box below, nowhere else.",
     perspective_label: "Which perspective is closest?",
     community_question: "Community question",
     language_of_note_label: "Language of your note",
@@ -621,7 +623,8 @@ const STRINGS = {
     toast_explain_success: "Source explained — review the draft below.",
     toast_network_error: "Could not reach the local server. Check it's still running.",
     // Audio avatar
-    avatar_talk_button: "Talk to the assistant",
+    avatar_talk_button: "Say your question instead of typing",
+    voice_read_button: "Read this record to me",
     avatar_listening: "Listening…",
     avatar_speaking: "Speaking…",
     avatar_unsupported: "Voice isn't supported in this browser — use the text box below instead.",
@@ -767,7 +770,7 @@ const STRINGS = {
     ai_status_docker_title: (model) => `Local AI is starting — the model "${model}" is still downloading.`,
     ai_status_docker_body: "First start only (a few GB). Everything else works now; translation, drafts, and “Explain a source” switch on by themselves when the download finishes. Progress:",
     voice_availability_note: "Voice playback depends on which languages your browser and operating system already have installed — it may not be available for every language listed here.",
-    record_tabs_hint: "Translate or listen to this record on Evidence · talk to the voice assistant on Feedback.",
+    record_tabs_hint: "Translate or listen to this record on Evidence · ask the office on Feedback.",
     voice_missing_title: (language) => `No voice installed for ${language} on this device.`,
     voice_missing_body: "Text translation still works fully — this only affects spoken playback.",
     voice_help_mac: "On macOS: System Settings → Accessibility → Spoken Content → System Voice → Manage Voices…",
@@ -1165,12 +1168,12 @@ const STRINGS = {
     next_step_body: "Passez d’une annonce peu claire à une source, une question précise, et un chemin de réponse visible.",
     draft_feedback_arrow: "Rédiger un retour →",
     your_words_first_eyebrow: "VOS MOTS D’ABORD",
-    your_words_first_title: "Transformez une note vocale en question civique vérifiable.",
-    your_words_first_body: "Le brouillon est un point de départ. Lisez-le, modifiez-le, puis décidez de le garder comme brouillon.",
-    audio_access: "Accès audio",
-    audio_access_detail: " · radio + téléphone basique",
+    your_words_first_title: "Votre question, avec vos mots — écrite ou dite.",
+    your_words_first_body: "Dites ou écrivez ce que vous voulez savoir. Le brouillon qui suit est un point de départ : lisez-le, modifiez-le, puis envoyez-le au bureau. Aucune machine n’y répond.",
+    audio_access: "Écouter et parler",
+    audio_access_detail: " · pour lire peu, lire mal, ou avoir les mains prises",
     use_sample: "▶ Utiliser l’exemple",
-    voice_caption: "Écoutez une courte explication sur une radio partagée ou un téléphone à touches, puis enregistrez avec vos propres mots.",
+    voice_caption: "La fiche est lue à voix haute par votre téléphone ; vos mots dits vont dans le champ ci-dessous, nulle part ailleurs.",
     perspective_label: "Quel point de vue se rapproche le plus du vôtre ?",
     community_question: "Question communautaire",
     language_of_note_label: "Langue de votre note",
@@ -1258,7 +1261,8 @@ const STRINGS = {
     explain_no_file: "Choisissez d'abord un fichier PDF.",
     toast_explain_success: "Source expliquée — relisez le brouillon ci-dessous.",
     toast_network_error: "Impossible de joindre le serveur local. Vérifiez qu'il fonctionne toujours.",
-    avatar_talk_button: "Parler à l'assistant",
+    avatar_talk_button: "Dire votre question au lieu de l’écrire",
+    voice_read_button: "Me lire cette fiche",
     avatar_listening: "Écoute…",
     avatar_speaking: "Parle…",
     avatar_unsupported: "La voix n'est pas prise en charge par ce navigateur — utilisez plutôt le champ de texte ci-dessous.",
@@ -1398,7 +1402,7 @@ const STRINGS = {
     ai_status_docker_title: (model) => `L'IA locale démarre — le modèle « ${model} » est en cours de téléchargement.`,
     ai_status_docker_body: "Au premier démarrage seulement (quelques Go). Tout le reste fonctionne déjà ; la traduction, les brouillons et « Expliquer une source » s'activent d'eux-mêmes à la fin du téléchargement. Progression :",
     voice_availability_note: "La lecture audio dépend des langues déjà installées sur votre navigateur et votre système — elle peut ne pas être disponible pour toutes les langues listées ici.",
-    record_tabs_hint: "Traduisez ou écoutez cette fiche depuis Preuves · parlez à l'assistant vocal depuis Retour.",
+    record_tabs_hint: "Traduisez ou écoutez cette fiche depuis Preuves · interrogez le bureau depuis Retour.",
     voice_missing_title: (language) => `Aucune voix installée pour le ${language} sur cet appareil.`,
     voice_missing_body: "La traduction écrite fonctionne toujours pleinement — seule la lecture audio est concernée.",
     voice_help_mac: "Sur macOS : Réglages Système → Accessibilité → Contenu énoncé → Voix système → Gérer les voix…",
@@ -2492,7 +2496,7 @@ function renderFeedback(record) {
   return `
     <div class="feedback-layout">
       <article class="panel"><span class="eyebrow">${t("your_words_first_eyebrow")}</span><h2>${t("your_words_first_title")}</h2><p class="panel-intro">${t("your_words_first_body")}</p>
-        <div class="voice-box"><div class="voice-box-top"><div><strong>${t("audio_access")}</strong><small>${t("audio_access_detail")}</small></div></div><div class="avatar-row"><div class="audio-avatar" id="audio-avatar" aria-hidden="true"><span class="avatar-blob b1"></span><span class="avatar-blob b2"></span><span class="avatar-blob b3"></span><span class="avatar-blob b4"></span></div><div class="avatar-copy"><button class="secondary-btn compact-action" id="avatar-talk">${t("avatar_talk_button")}</button><small id="avatar-status"></small></div></div><div class="waveform" aria-hidden="true">${Array.from({ length: 42 }, (_, i) => `<i style="height:${10 + ((i * 17) % 28)}px"></i>`).join("")}</div><p class="voice-caption">${t("voice_caption")}</p></div>
+        <div class="voice-box"><div class="voice-box-top"><div><strong>${t("audio_access")}</strong><small>${t("audio_access_detail")}</small></div></div><div class="voice-actions"><button class="secondary-btn compact-action" id="voice-read">🔊 ${t("voice_read_button")}</button><button class="secondary-btn compact-action" id="avatar-talk">🎤 ${t("avatar_talk_button")}</button><small id="avatar-status"></small></div><p class="voice-caption">${t("voice_caption")} ${help("voice")}</p></div>
         <label class="form-label" for="perspective">${t("perspective_label")}</label><select id="perspective" class="feedback-select"><option>${t("community_question")}</option>${record.perspectives.map((item) => `<option>${esc(item.label)}</option>`).join("")}</select>
         <label class="form-label" for="language">${t("language_of_note_label")}</label><select id="language" class="feedback-select">${(state.dashboard.languages || ["English"]).map((language) => `<option>${esc(language)}</option>`).join("")}</select>
         ${(() => { const office = responsibleOffice(record); return `<div class="addressed-box"><span class="eyebrow">${t("addressed_to_eyebrow")}</span><strong>${esc(office.name)}</strong>${office.office && office.office !== office.name ? `<small>${esc(office.office)}</small>` : ""}${office.id ? `<button class="text-btn" data-rep-detail="${esc(office.id)}">${t("open_public_profile_arrow")}</button>` : ""}${state.askUnknown?.recordId === record.id ? `<p class="asking-about">${t("asking_about", esc(state.askUnknown.question))}</p>` : ""}</div>`; })()}
@@ -2809,8 +2813,6 @@ async function startAvatarInteraction(record) {
   const originalLanguage = languages[0];
   const translation = state.translation?.recordId === record.id ? state.translation : null;
   const activeLanguage = translation?.status === "ready" ? translation.language : originalLanguage;
-  const textToSpeak = translation?.status === "ready" ? translation.result.plain_language : record.plain_language;
-  await avatarSpeak(textToSpeak, speechLangCode(activeLanguage));
   if (!support.recog) return showToast(t("avatar_unsupported"));
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const recognizer = new Recognition();
@@ -2850,6 +2852,13 @@ async function translateRecord(record, language) {
 function bindRecordActions(record) {
   const avatarTalk = document.querySelector("#avatar-talk");
   if (avatarTalk) avatarTalk.addEventListener("click", () => startAvatarInteraction(record));
+  const voiceRead = document.querySelector("#voice-read");
+  if (voiceRead) voiceRead.addEventListener("click", () => {
+    const languages = state.dashboard.languages?.length ? state.dashboard.languages : ["English"];
+    const translation = state.translation?.recordId === record.id ? state.translation : null;
+    const activeLanguage = translation?.status === "ready" ? translation.language : languages[0];
+    avatarSpeak(translation?.status === "ready" ? translation.result.plain_language : record.plain_language, speechLangCode(activeLanguage));
+  });
   const translateSelect = document.querySelector("#translate-language");
   if (translateSelect) translateSelect.addEventListener("change", (event) => translateRecord(record, event.target.value));
   const listenButton = document.querySelector("#listen-plain-language");

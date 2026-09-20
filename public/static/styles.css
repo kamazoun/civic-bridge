@@ -703,3 +703,5 @@ a { color: inherit; text-decoration: none; }
 .questions-list .comment-item { background: #fff; }
 .question-item .asking-about { margin: 4px 0 6px; }
 .saved-feedback-top small.replied { color: var(--pine-2); font-weight: 700; }
+.voice-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 6px; }
+.voice-actions small { color: #cfe1d6; font-size: 12px; }
