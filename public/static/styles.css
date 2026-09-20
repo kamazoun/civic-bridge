@@ -642,3 +642,15 @@ a { color: inherit; text-decoration: none; }
 .mic-btn { padding: 8px 12px; font-size: 15px; }
 .mic-btn.listening { background: #fbe9e4; border-color: #d9a08f; }
 .profile-understood { margin: 8px 0 0; min-height: 1em; color: var(--pine-2); font-size: 12px; font-weight: 600; }
+/* Unknowns are questions with an owner */
+.fact-list.askable li { padding: 0; }
+.fact-list.askable li::before { display: none; }
+.ask-unknown { display: grid; gap: 3px; width: 100%; padding: 10px 12px; border: 1px solid #e3c9a8; border-radius: 10px; background: #fdf6ec; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.ask-unknown:hover { border-color: #c9955c; background: #fbeedc; }
+.ask-unknown small { color: #8a5a22; font-weight: 700; font-size: 11px; }
+.addressed-to { margin: 8px 0 14px; padding: 9px 11px; border-left: 3px solid var(--pine); background: #eef4ef; font-size: 12px; font-weight: 600; color: var(--pine-2); }
+.addressed-box { display: grid; gap: 4px; margin: 18px 0 4px; padding: 12px 14px; border: 1px solid #cfdcd3; border-radius: 10px; background: #eef4ef; }
+.addressed-box strong { color: var(--pine-2); font-size: 14px; }
+.addressed-box small { color: var(--muted); font-size: 11px; }
+.addressed-box .text-btn { justify-self: start; padding: 0; margin-top: 2px; }
+.asking-about { margin: 6px 0 0; font-size: 12px; color: #8a5a22; font-weight: 600; }

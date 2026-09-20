@@ -23,6 +23,7 @@ const state = {
   repId: null,
   repResponses: {},
   repStats: null,
+  askUnknown: null,
   sessionId: (() => { try { return localStorage.getItem("civic-bridge-session") || (localStorage.setItem("civic-bridge-session", Math.random().toString(36).slice(2)), localStorage.getItem("civic-bridge-session")); } catch (error) { return "anon"; } })(),
   followedRepresentatives: new Set(),
   user: null,
@@ -411,7 +412,12 @@ const STRINGS = {
     // Overview tab
     plain_language_eyebrow: "IN PLAIN LANGUAGE",
     what_source_says: "What the source says",
-    what_we_cannot_confirm: "What we cannot confirm",
+    what_we_cannot_confirm: "What the source does not say — click one to ask",
+    ask_office_about_this: "Turn this into a question for the responsible office",
+    ask_office_arrow: (office) => `Ask ${office} →`,
+    addressed_to: (office) => `Your question will be addressed to: ${office}.`,
+    addressed_to_eyebrow: "ADDRESSED TO",
+    asking_about: (question) => `Open question from the source: “${question}”`,
     source_record_eyebrow: "SOURCE RECORD",
     evidence_open_question: "Open question",
     evidence_verified: "Verified",
@@ -974,7 +980,12 @@ const STRINGS = {
     tab_channels: "Canaux",
     plain_language_eyebrow: "EN LANGAGE SIMPLE",
     what_source_says: "Ce que dit la source",
-    what_we_cannot_confirm: "Ce que nous ne pouvons pas confirmer",
+    what_we_cannot_confirm: "Ce que la source ne dit pas — cliquez pour poser la question",
+    ask_office_about_this: "Transformer ceci en question pour le bureau responsable",
+    ask_office_arrow: (office) => `Demander à ${office} →`,
+    addressed_to: (office) => `Votre question sera adressée à : ${office}.`,
+    addressed_to_eyebrow: "ADRESSÉE À",
+    asking_about: (question) => `Question ouverte tirée de la source : « ${question} »`,
     source_record_eyebrow: "FICHE SOURCE",
     evidence_open_question: "Question ouverte",
     evidence_verified: "Vérifié",
@@ -1336,6 +1347,20 @@ async function refreshRepresentativeStats() {
     if (!response.ok) return false;
     return applyRepresentativeStats(await response.json());
   } catch (error) { return false; }
+}
+
+// Which office a record is addressed to: fixtures by topic (same table as
+// FIXTURE_RECORD_OFFICE in app.py), published notices by the office chosen at
+// publication, anything else by its responsible_office text.
+const FIXTURE_RECORD_OFFICE = { "market-road": "ward-council", "clinic-supply": "district-council", "water-access": "prefecture", "school-supply": "governor", "power-outage": "governor" };
+function responsibleOffice(record) {
+  const byLevel = state.representatives.find((rep) => rep.id === FIXTURE_RECORD_OFFICE[record.id]);
+  if (byLevel) return { id: byLevel.id, name: representativeName(byLevel), office: byLevel.name };
+  const notice = state.publishedNotices.find((item) => item.id === record.id);
+  const target = notice?.responsible_office || notice?.office || record.responsible_office || "";
+  const rep = state.representatives.find((item) => item.name === target || item.display_name === target);
+  if (rep) return { id: rep.id, name: representativeName(rep), office: rep.name };
+  return { id: "", name: target || t("request_responsible_office"), office: target };
 }
 
 function representativeName(rep) {
@@ -2148,6 +2173,17 @@ function wireRecordNavigation(record) {
   const back = document.querySelector("[data-route=home]");
   if (back) back.addEventListener("click", () => setRoute("home"));
   document.querySelectorAll("[data-tab]").forEach((button) => button.addEventListener("click", () => { state.tab = button.dataset.tab; renderRecord(); }));
+  document.querySelectorAll("[data-ask-unknown]").forEach((button) => button.addEventListener("click", () => {
+    const translation = state.translation?.recordId === record.id && state.translation.status === "ready" ? state.translation.result : null;
+    const question = (translation ? translation.unknowns : record.unknowns)[Number(button.dataset.askUnknown)];
+    state.askUnknown = { recordId: record.id, question, office: responsibleOffice(record) };
+    state.draft = null;
+    state.tab = "feedback";
+    renderRecord();
+    const field = document.querySelector("#feedback-text");
+    if (field) { field.focus(); field.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  }));
+  document.querySelectorAll("#app .addressed-box [data-rep-detail]").forEach((button) => button.addEventListener("click", () => { state.repId = button.dataset.repDetail; setRoute("representative-detail"); }));
   bindRecordActions(record);
   if (state.tab === "overview") applyRecordPreferences(record);
 }
@@ -2172,11 +2208,11 @@ function renderOverview(record) {
         ${showingTranslation ? `<p class="translate-badge">${t("machine_translation_badge")} <button class="text-btn" id="show-original-language">${t("show_original")}</button></p>` : ""}
         <div class="explanation">${esc(plainLanguage)}</div>
         <div class="list-block"><h3>${t("what_source_says")}</h3><ul class="fact-list">${facts.map((fact) => `<li>${esc(fact)}</li>`).join("")}</ul></div>
-        <div class="list-block"><h3>${t("what_we_cannot_confirm")}</h3><ul class="fact-list unknown">${unknowns.map((fact) => `<li>${esc(fact)}</li>`).join("")}</ul></div>
+        <div class="list-block"><h3>${t("what_we_cannot_confirm")}</h3><ul class="fact-list unknown askable">${unknowns.map((fact, index) => `<li><button class="ask-unknown" data-ask-unknown="${index}" title="${t("ask_office_about_this")}"><span>${esc(fact)}</span><small>${t("ask_office_arrow", esc(responsibleOffice(record).name))}</small></button></li>`).join("")}</ul></div>
       </article>
       <aside class="panel"><span class="eyebrow">${t("source_record_eyebrow")}</span>${record.evidence.map((item) => `<div class="source-card ${item.kind === "open" ? "open" : ""}"><div class="source-top"><span>${esc(item.label)}</span><span>${item.kind === "open" ? t("evidence_open_question") : record.provenance_status === "verified" ? t("evidence_verified") : t("evidence_illustrative")}</span></div><blockquote>“${esc(item.quote)}”</blockquote><footer>${esc(record.source_label)} · ${esc(item.page)}</footer></div>`).join("")}<p class="disclaimer">${esc(record.provenance_note || t("record_available_review"))}</p></aside>
     </div>
-    <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button></aside></div>
+    <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><p class="addressed-to">${t("addressed_to", esc(responsibleOffice(record).name))}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button></aside></div>
     ${renderCommunityPanel(record)}
   `;
 }
@@ -2189,7 +2225,8 @@ function renderFeedback(record) {
         <div class="voice-box"><div class="voice-box-top"><div><strong>${t("audio_access")}</strong><small>${t("audio_access_detail")}</small></div><button class="voice-btn" id="voice-demo">${t("use_sample")}</button></div><div class="avatar-row"><div class="audio-avatar" id="audio-avatar" aria-hidden="true"><span class="avatar-blob b1"></span><span class="avatar-blob b2"></span><span class="avatar-blob b3"></span><span class="avatar-blob b4"></span></div><div class="avatar-copy"><button class="secondary-btn compact-action" id="avatar-talk">${t("avatar_talk_button")}</button><small id="avatar-status"></small></div></div><div class="waveform" aria-hidden="true">${Array.from({ length: 42 }, (_, i) => `<i style="height:${10 + ((i * 17) % 28)}px"></i>`).join("")}</div><p class="voice-caption">${t("voice_caption")}</p></div>
         <label class="form-label" for="perspective">${t("perspective_label")}</label><select id="perspective" class="feedback-select"><option>${t("community_question")}</option>${record.perspectives.map((item) => `<option>${esc(item.label)}</option>`).join("")}</select>
         <label class="form-label" for="language">${t("language_of_note_label")}</label><select id="language" class="feedback-select">${(state.dashboard.languages || ["English"]).map((language) => `<option>${esc(language)}</option>`).join("")}</select>
-        <label class="form-label" for="feedback-text">${t("your_words_label")}</label><textarea id="feedback-text" class="feedback-textarea" placeholder="${t("your_words_placeholder")}">${esc(draft?.original || "")}</textarea>
+        ${(() => { const office = responsibleOffice(record); return `<div class="addressed-box"><span class="eyebrow">${t("addressed_to_eyebrow")}</span><strong>${esc(office.name)}</strong>${office.office && office.office !== office.name ? `<small>${esc(office.office)}</small>` : ""}${office.id ? `<button class="text-btn" data-rep-detail="${esc(office.id)}">${t("open_public_profile_arrow")}</button>` : ""}${state.askUnknown?.recordId === record.id ? `<p class="asking-about">${t("asking_about", esc(state.askUnknown.question))}</p>` : ""}</div>`; })()}
+        <label class="form-label" for="feedback-text">${t("your_words_label")}</label><textarea id="feedback-text" class="feedback-textarea" placeholder="${t("your_words_placeholder")}">${esc(draft?.original || (state.askUnknown?.recordId === record.id ? state.askUnknown.question : ""))}</textarea>
         <div class="button-row"><button class="primary-btn" id="make-draft">${t("create_reviewable_draft")}</button><button class="secondary-btn" id="clear-draft">${t("clear")}</button></div>
         ${draft ? `<div class="draft-box"><strong>${t("structured_draft_label")}</strong><small>${draft.engine === "ollama" ? t("prepared_by_ollama") : t("prepared_by_fallback")}</small>${esc(draft.draft)}</div><ul class="check-list">${draft.checks.map((check) => `<li>${esc(check)}</li>`).join("")}</ul><div class="button-row"><button class="primary-btn" id="save-draft">${t("save_draft")}</button></div>` : ""}
       </article>
@@ -2375,7 +2412,7 @@ async function submitExplain() {
 
 function renderFeedbackList() {
   const myFeedback = state.feedback.filter((item) => state.user ? item.user_id === state.user.id : !item.user_id && item.session === state.sessionId);
-  app.innerHTML = `<section class="page-head"><div><span class="eyebrow">${t("my_feedback_eyebrow")}</span><h1>${t("my_feedback_title")}</h1><p>${t("my_feedback_body")}</p></div><div class="head-note"><strong>${t("saved_drafts_count", myFeedback.length)}</strong><span>${t("nothing_sent_note")}</span></div></section><div class="feedback-list">${myFeedback.length ? myFeedback.map((item) => `<article class="saved-feedback"><div class="saved-feedback-top"><h3>${esc(item.record_title)}</h3><small>${esc(item.status)}</small></div><p>${esc(item.draft)}</p><div class="record-meta" style="margin-top:12px"><span class="tag">${esc(item.perspective)}</span><span class="tag">${esc(item.language)}</span></div></article>`).join("") : `<div class="empty-state">${t("no_drafts_yet")}</div>`}</div>`;
+  app.innerHTML = `<section class="page-head"><div><span class="eyebrow">${t("my_feedback_eyebrow")}</span><h1>${t("my_feedback_title")}</h1><p>${t("my_feedback_body")}</p></div><div class="head-note"><strong>${t("saved_drafts_count", myFeedback.length)}</strong><span>${t("nothing_sent_note")}</span></div></section><div class="feedback-list">${myFeedback.length ? myFeedback.map((item) => `<article class="saved-feedback"><div class="saved-feedback-top"><h3>${esc(item.record_title)}</h3><small>${esc(item.status)}</small></div><p>${esc(item.draft)}</p><div class="record-meta" style="margin-top:12px"><span class="tag">${esc(item.perspective)}</span><span class="tag">${esc(item.language)}</span>${item.office ? `<span class="tag">→ ${esc(item.office)}</span>` : ""}</div></article>`).join("") : `<div class="empty-state">${t("no_drafts_yet")}</div>`}</div>`;
 }
 
 function speechSupport() {
@@ -2553,7 +2590,7 @@ function bindRecordActions(record) {
     makeDraft.disabled = true;
     makeDraft.textContent = t("drafting");
     try {
-      const response = await fetch("/api/feedback/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record_id: record.id, country: state.dashboard.country, text, language, perspective }) });
+      const response = await fetch("/api/feedback/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record_id: record.id, country: state.dashboard.country, text, language, perspective, office: responsibleOffice(record).office, office_name: responsibleOffice(record).name, question: state.askUnknown?.recordId === record.id ? state.askUnknown.question : "" }) });
       state.draft = await response.json();
       state.draft.original = state.draft.original || text;
       renderRecord();
@@ -2567,7 +2604,7 @@ function bindRecordActions(record) {
   if (clearDraft) clearDraft.addEventListener("click", () => { state.draft = null; renderRecord(); });
   const saveDraft = document.querySelector("#save-draft");
   if (saveDraft) saveDraft.addEventListener("click", async () => {
-    const response = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record_id: record.id, country: state.dashboard.country, token: authToken(), original: state.draft.original, draft: state.draft.draft, language: state.draft.language, perspective: state.draft.perspective }) });
+    const response = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record_id: record.id, country: state.dashboard.country, token: authToken(), original: state.draft.original, draft: state.draft.draft, language: state.draft.language, perspective: state.draft.perspective, office: responsibleOffice(record).name, question: state.askUnknown?.recordId === record.id ? state.askUnknown.question : "" }) });
     const saved = await response.json();
     state.feedback.unshift({ ...saved, session: state.sessionId });
     state.draft = null;

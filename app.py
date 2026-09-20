@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import gzip
 import hashlib
 import html
 import json
@@ -1226,7 +1227,7 @@ def _ollama_translate_once(record: dict[str, Any], language: str) -> dict[str, A
         return None
 
 
-def ollama_draft(record: dict[str, Any], original: str, language: str, perspective: str) -> dict[str, Any] | None:
+def ollama_draft(record: dict[str, Any], original: str, language: str, perspective: str, office: str = "", question: str = "") -> dict[str, Any] | None:
     if not OLLAMA_MODEL:
         return None
     schema = {
@@ -1243,8 +1244,10 @@ def ollama_draft(record: dict[str, Any], original: str, language: str, perspecti
     prompt = (
         "Prepare a reviewable civic-information draft. Use only the source facts below. "
         "Never invent a date, office, quote, completion state, or statistic. Keep uncertainty visible. "
-        f"Return the requested JSON fields. Language: {language or 'English'}. Perspective: {perspective or 'Community question'}.\n\n"
-        f"SOURCE TITLE: {record['title']}\nSOURCE LABEL: {record['source_label']}\n"
+        f"Return the requested JSON fields. Language: {language or 'English'}. Perspective: {perspective or 'Community question'}.\n"
+        + (f"The draft is a message addressed to this office: {office}. " if office else "")
+        + (f"The resident is asking about this specific gap in the source — make it the central question of the draft: {question}\n\n" if question else "\n")
+        + f"SOURCE TITLE: {record['title']}\nSOURCE LABEL: {record['source_label']}\n"
         f"SOURCE SUMMARY: {record['plain_language']}\nCONFIRMED FACTS: {json.dumps(record['facts'], ensure_ascii=False)}\n"
         f"OPEN QUESTIONS: {json.dumps(record['unknowns'], ensure_ascii=False)}\nCOMMUNITY NOTE: {original or 'I would like a clear update about this decision.'}"
     )
@@ -1262,6 +1265,8 @@ def ollama_draft(record: dict[str, Any], original: str, language: str, perspecti
             "language": language or "English",
             "perspective": perspective or "Community question",
             "source": record["source_label"],
+            "office": office,
+            "question": question,
             "plain_language": result.get("plain_language", record["plain_language"]),
             "facts": result.get("facts", record["facts"]),
             "unknowns": result.get("unknowns", record["unknowns"]),
@@ -1274,25 +1279,40 @@ def ollama_draft(record: dict[str, Any], original: str, language: str, perspecti
         return None
 
 
-def build_draft(record: dict[str, Any], original: str, language: str, perspective: str) -> dict[str, Any]:
-    generated = ollama_draft(record, original, language, perspective)
+def build_draft(record: dict[str, Any], original: str, language: str, perspective: str, office: str = "", question: str = "") -> dict[str, Any]:
+    """A reviewable message addressed to the responsible office. When the
+    resident started from one of the record's open questions, that question
+    is the spine of the draft — the gap in the document becomes the ask."""
+    generated = ollama_draft(record, original, language, perspective, office, question)
     if generated:
         return generated
     clean_original = " ".join(original.strip().split())
     if not clean_original:
-        clean_original = "I would like a clear update about this decision."
-    draft = (
-        f"Hello. I am responding to the {record['title'].lower()}. "
-        f"The source says: {record['plain_language']} "
-        f"My question is: {clean_original} "
-        f"Please clarify the next step and the date for the next public update."
-    )
+        clean_original = question or "I would like a clear update about this decision."
+    is_french = (language or "").lower().startswith("fr")
+    greeting = f"À l’attention de : {office}. " if office and is_french else f"To the {office}: " if office else ("Bonjour. " if is_french else "Hello. ")
+    if is_french:
+        draft = (
+            f"{greeting}Je vous écris au sujet de « {record['title']} » ({record['source_label']}). "
+            + (f"La source ne précise pas : {question} " if question else f"La source dit : {record['plain_language']} ")
+            + f"Ma question : {clean_original} "
+            f"Merci d’indiquer la réponse, la prochaine étape et la date de la prochaine mise à jour publique."
+        )
+    else:
+        draft = (
+            f"{greeting}I am writing about “{record['title']}” ({record['source_label']}). "
+            + (f"The source does not say: {question} " if question else f"The source says: {record['plain_language']} ")
+            + f"My question: {clean_original} "
+            f"Please state the answer, the next step, and the date of the next public update."
+        )
     return {
         "original": clean_original,
         "draft": draft,
         "language": language or "English",
         "perspective": perspective or "Community question",
         "source": record["source_label"],
+        "office": office,
+        "question": question,
         "checks": [
             "Original meaning preserved for review",
             "Source attached",
@@ -1312,8 +1332,19 @@ class DemoHandler(BaseHTTPRequestHandler):
         print(f"[{self.log_date_time_string()}] {fmt % args}")
 
     def send_bytes(self, payload: bytes, content_type: str, status: int = HTTPStatus.OK) -> None:
+        # gzip text responses when the client accepts it: the app is meant for
+        # thin connections, and app.js + bootstrap JSON compress about 5:1.
+        compressible = content_type.startswith(("text/", "application/json", "image/svg"))
+        if compressible and len(payload) > 1024 and "gzip" in self.headers.get("Accept-Encoding", ""):
+            payload = gzip.compress(payload, compresslevel=6)
+            encoding = "gzip"
+        else:
+            encoding = ""
         self.send_response(status)
         self.send_header("Content-Type", content_type)
+        if encoding:
+            self.send_header("Content-Encoding", encoding)
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
@@ -1513,7 +1544,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             record = resolve_record(str(data.get("record_id", "")), str(data.get("country", "")))
             if not record:
                 return self.send_error_json("Record not found", HTTPStatus.NOT_FOUND)
-            return self.send_json(build_draft(record, str(data.get("text", "")), str(data.get("language", "English")), str(data.get("perspective", "Community question"))))
+            return self.send_json(build_draft(record, str(data.get("text", "")), str(data.get("language", "English")), str(data.get("perspective", "Community question")), str(data.get("office_name") or data.get("office") or ""), str(data.get("question", ""))))
         if parsed.path == "/api/sources/explain":
             mode = str(data.get("mode", "text"))
             country = str(data.get("country", ""))
@@ -1577,6 +1608,8 @@ class DemoHandler(BaseHTTPRequestHandler):
                 "perspective": str(data.get("perspective", "Community question")),
                 "language": str(data.get("language", "English")),
                 "country": str(data.get("country", "")),
+                "office": " ".join(str(data.get("office", "")).split())[:120],
+                "question": " ".join(str(data.get("question", "")).split())[:300],
                 "status": "Draft saved — not yet sent",
                 "created_at": now_iso(),
             }

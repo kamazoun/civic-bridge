@@ -1,6 +1,8 @@
 # Civic Bridge
 
-A local-first civic information platform. Each public announcement becomes a source record — original passage, plain-language explanation, confirmed facts, open questions, responsible office, timeline — delivered over web, voice, SMS/WhatsApp, and radio-style listening. Language-model features run on a local model through [Ollama](https://ollama.com).
+Civic Bridge keeps a public notice beside its original source, separates what is confirmed from what is not, and turns what is missing into a question addressed to the office responsible.
+
+Every civic AI tool summarises what the government said. Civic Bridge shows what it did *not* say — and routes that to the office that owes the answer. *Facts* and *unknowns* are separate fields from ingestion to screen, so the model cannot quietly smooth an open question into confident prose; each unknown is a button that opens a draft addressed to the responsible office, whose replies, response rate and record are public. Five countries, French/English interface, local-language translation, voice and SMS/WhatsApp channels, and a local model through [Ollama](https://ollama.com) so nothing leaves the community.
 
 | | |
 |---|---|
@@ -150,7 +152,7 @@ All configuration is by environment variable.
 
 ## 4. Features
 
-**Source records.** Every record carries the original passage, a plain-language explanation, confirmed facts, open questions, resident perspectives, an evidence list, a timeline, and per-channel delivery text. Record identifiers are stable across countries, so ranking and voting behave identically in every language.
+**Source records.** Every record carries the original passage, a plain-language explanation, confirmed facts, open questions, resident perspectives, an evidence list, a timeline, and per-channel delivery text. Open questions are actionable: each one is a button that opens the Feedback tab pre-filled with that question and addressed to the record's responsible office (`responsibleOffice()` in `app.js`, `FIXTURE_RECORD_OFFICE` in `app.py`); the draft (`build_draft`, model or template) makes that gap the central ask, and the saved draft records the office it was addressed to. Record identifiers are stable across countries, so ranking and voting behave identically in every language.
 
 **Location and language.** Area is set from browser location (reverse geocoding) or chosen from a map. Interface language and translation targets follow the country.
 
@@ -242,7 +244,7 @@ The application itself makes no outbound requests except to Ollama and, for *Exp
 | unpkg (Leaflet) and OpenStreetMap tiles | Country/area selection map | Area picker only |
 | OpenStreetMap Nominatim | Reverse geocoding of browser location to a country | First visit with location permission |
 
-Everything else operates offline.
+Everything else operates offline. Text and JSON responses are gzip-compressed when the browser accepts it (`send_bytes`): the application script goes from 208 KB to 54 KB and the bootstrap payload from 1 MB to 97 KB, which matters on metered mobile data.
 
 ## 6. API reference
 
