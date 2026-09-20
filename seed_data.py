@@ -380,7 +380,7 @@ def seed(app: dict[str, Any]) -> None:
                     "published_at": iso(published), "date": fmt_date(published, lang) + published.strftime(" · %H:%M UTC"),
                     "status": "Published", "published_by": office_users[level]["display_name"],
                 }
-                register_notice(notice)
+                register_notice(notice, use_model=False)
 
         # --- Community activity on every record of this country
         records = list(context["records"]) + [app["RECORDS"][n["id"]] for n in app["PUBLISHED_NOTICES"] if n.get("country") == country]

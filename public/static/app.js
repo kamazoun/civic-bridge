@@ -460,6 +460,8 @@ const STRINGS = {
     source_record_eyebrow: "SOURCE RECORD",
     evidence_open_question: "Open question",
     evidence_verified: "Verified",
+    evidence_published: "Published by the office",
+    evidence_submitted: "Submitted by you",
     evidence_illustrative: "Illustrative",
     record_available_review: "This record is available for review.",
     different_priorities_eyebrow: "DIFFERENT PRIORITIES",
@@ -1083,6 +1085,8 @@ const STRINGS = {
     source_record_eyebrow: "FICHE SOURCE",
     evidence_open_question: "Question ouverte",
     evidence_verified: "Vérifié",
+    evidence_published: "Publié par le bureau",
+    evidence_submitted: "Soumis par vous",
     evidence_illustrative: "Illustratif",
     record_available_review: "Cette fiche est disponible pour vérification.",
     different_priorities_eyebrow: "PRIORITÉS DIFFÉRENTES",
@@ -1604,25 +1608,36 @@ function applyAreaContext() {
 }
 
 function publisherRecord(notice) {
+  // Mirrors published_notice_record() in app.py: same content, in the
+  // notice's own language. Facts and unknowns come from the notice text
+  // (derived on the server at publication), never from boilerplate.
+  const fr = (notice.country ? ["Togo", "Côte d’Ivoire"].includes(notice.country) : uiLang() === "fr");
+  const office = notice.office || notice.responsible_office || (fr ? "Guichet d’information publique" : "Public Information Desk");
   const location = `${notice.locality}${notice.region ? ` · ${notice.region}` : state.dashboard.region ? ` · ${state.dashboard.region}` : ""}`;
   const source = notice.source_url || "/publisher";
+  const facts = notice.facts?.length ? notice.facts : [notice.summary];
+  const unknowns = notice.unknowns?.length ? notice.unknowns : (fr ? ["Quand la prochaine mise à jour publique sera-t-elle publiée ?"] : ["When will the next public update be published?"]);
   return {
     id: notice.id,
     title: notice.title || notice.headline,
-    category: notice.category || "Public notice",
-    location,
-    source_date: notice.date || "Just published",
-    source_label: `${notice.responsible_office || notice.office || "Public Information Desk"} · published source`,
-    status: "Source verified",
-    status_detail: "Community response pending",
+    category: notice.category || (fr ? "Avis public" : "Public notice"),
+    location, country: notice.country || state.dashboard.country,
+    source_date: notice.date || (fr ? "À l’instant" : "Just published"),
+    source_label: `${notice.responsible_office || office} · ${fr ? "publication officielle" : "official publication"}`,
+    source_title: fr ? "Avis du portail d’information publique — non vérifié de manière indépendante" : "Public information portal notice — not independently verified",
+    source_url: source,
+    provenance_status: "published",
+    provenance_note: fr ? `Avis publié par ${office} via le portail d’information publique ; il n’a pas été vérifié de manière indépendante.` : `Notice published by ${office} through the public information portal; it has not been independently verified.`,
+    status: fr ? "Avis publié par le bureau" : "Notice published by the office",
+    status_detail: fr ? "Non vérifié de manière indépendante" : "Not independently verified",
     summary: notice.summary,
-    plain_language: notice.summary,
-    facts: [notice.summary, notice.body || notice.summary, `Published by ${notice.office || "the public information desk"}.`],
-    unknowns: ["What happens next?", "When will the next public update be issued?", "Where can residents ask a follow-up question?"],
-    perspectives: [{ label: "Community question", body: "Residents can review the source and ask for a dated next step." }],
-    evidence: [{ label: "Published notice", quote: notice.body || notice.summary, page: "Web source", kind: "verified" }],
-    timeline: [{ date: notice.date || "Today", label: "Notice published", detail: "The public information desk added this update to the source feed.", state: "done" }, { date: "—", label: "Next public update", detail: "The source does not state a confirmed follow-up date.", state: "pending" }],
-    channels: { web: `Open the published source at ${source}.`, voice: "Listen to the plain-language summary on a shared radio or basic keypad phone.", text: "Receive the same source-backed update through a lightweight WhatsApp or SMS-style exchange." },
+    plain_language: notice.plain_language || notice.summary,
+    facts, unknowns,
+    perspectives: [{ label: fr ? "Question communautaire" : "Community question", body: fr ? "Les résidents peuvent consulter la source et demander une prochaine étape datée." : "Residents can review the source and ask for a dated next step." }],
+    evidence: [{ label: fr ? "Avis publié" : "Published notice", quote: notice.body || notice.summary, page: fr ? "Portail d’information publique" : "Public information portal", kind: "published" }],
+    timeline: [{ date: notice.date || (fr ? "Aujourd’hui" : "Today"), label: fr ? "Avis publié" : "Notice published", detail: fr ? `${office} a publié cet avis sur le portail d’information publique.` : `${office} published this notice on the public information portal.`, state: "done" }, { date: "—", label: fr ? "Prochaine mise à jour publique" : "Next public update", detail: fr ? "La source n’indique pas de date de suivi confirmée." : "The source does not state a confirmed follow-up date.", state: "pending" }],
+    channels: { web: fr ? `Ouvrez la source publiée sur ${source}.` : `Open the published source at ${source}.`, voice: fr ? "Écoutez le résumé en langage simple sur une radio partagée ou un téléphone à touches." : "Listen to the plain-language summary on a shared radio or basic keypad phone.", text: fr ? "Recevez la même mise à jour par un échange léger WhatsApp ou SMS." : "Receive the same source-backed update through a lightweight WhatsApp or SMS-style exchange." },
+    responsible_office: notice.responsible_office || office,
   };
 }
 
@@ -1631,7 +1646,7 @@ function ingestPublisherNotices(notices) {
   if (!fresh.length) return;
   fresh.forEach((notice) => { state.publishedNotices.push(notice); state.publisherNoticeIds.add(notice.id); });
   applyAreaContext();
-  showToast(`${fresh.length} new public update${fresh.length > 1 ? "s" : ""} added from the source desk.`);
+  showToast(uiLang() === "fr" ? `${fresh.length} nouvel${fresh.length > 1 ? "s avis publiés" : " avis publié"} par les bureaux.` : `${fresh.length} new notice${fresh.length > 1 ? "s" : ""} published by the offices.`);
   render();
 }
 
@@ -2381,7 +2396,7 @@ function renderOverview(record) {
         <div class="list-block"><h3>${t("what_source_says")}</h3><ul class="fact-list">${facts.map((fact) => `<li>${esc(fact)}</li>`).join("")}</ul></div>
         <div class="list-block"><h3>${t("what_we_cannot_confirm")}</h3><ul class="fact-list unknown askable">${unknowns.map((fact, index) => `<li><button class="ask-unknown" data-ask-unknown="${index}" title="${t("ask_office_about_this")}"><span>${esc(fact)}</span><small>${t("ask_office_arrow", esc(responsibleOffice(record).name))}</small></button></li>`).join("")}</ul></div>
       </article>
-      <aside class="panel"><span class="eyebrow">${t("source_record_eyebrow")}</span>${record.evidence.map((item) => `<div class="source-card ${item.kind === "open" ? "open" : ""}"><div class="source-top"><span>${esc(item.label)}</span><span>${item.kind === "open" ? t("evidence_open_question") : record.provenance_status === "verified" ? t("evidence_verified") : t("evidence_illustrative")}</span></div><blockquote>“${esc(item.quote)}”</blockquote><footer>${esc(record.source_label)} · ${esc(item.page)}</footer></div>`).join("")}<p class="disclaimer">${esc(record.provenance_note || t("record_available_review"))}</p></aside>
+      <aside class="panel"><span class="eyebrow">${t("source_record_eyebrow")}</span>${record.evidence.map((item) => `<div class="source-card ${item.kind === "open" ? "open" : ""}"><div class="source-top"><span>${esc(item.label)}</span><span>${item.kind === "open" ? t("evidence_open_question") : record.provenance_status === "verified" ? t("evidence_verified") : record.provenance_status === "published" ? t("evidence_published") : record.provenance_status === "user-submitted" ? t("evidence_submitted") : t("evidence_illustrative")}</span></div><blockquote>“${esc(item.quote)}”</blockquote><footer>${esc(record.source_label)} · ${esc(item.page)}</footer></div>`).join("")}<p class="disclaimer">${esc(record.provenance_note || t("record_available_review"))}</p></aside>
     </div>
     <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="perspective-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><p class="addressed-to">${t("addressed_to", esc(responsibleOffice(record).name))}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button>${(() => { const topic = issueTopic(record); const group = state.groups.find((item) => item.topic === topic); const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en; return topic ? `<div class="lands-on"><span class="eyebrow">${t("lands_on_eyebrow")}</span><p>${group ? t("lands_on_body", group.members, esc(names[topic] || topic), esc(state.dashboard.area)) : t("lands_on_body_unknown", esc(names[topic] || topic))}</p><button class="text-btn" data-open-group="${topic}">${t("open_group_arrow")}</button></div>` : ""; })()}</aside></div>
     ${renderCommunityPanel(record)}

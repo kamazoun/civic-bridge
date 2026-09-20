@@ -727,6 +727,43 @@ def now_iso() -> str:
 FRENCH_COUNTRIES = {"Togo", "Côte d’Ivoire"}
 
 
+# Phrases that mark a sentence as an open point rather than a fact. Used
+# when no model is connected (and for seeding), so "what the notice does not
+# say" is read from the notice itself instead of being boilerplate.
+UNCERTAINTY_MARKERS = {
+    "fr": ["pas encore", "n’est pas", "n'est pas", "ne sont pas", "à confirmer", "sera précisé", "sera communiqué", "seront communiqué", "reste à", "peut changer", "non précisé", "en attente", "ultérieurement", "dès confirmation", "sous réserve", "ne précise pas", "ne dit pas"],
+    "en": ["not yet", "to be confirmed", "will be announced", "will be published", "will be confirmed", "may change", "remains", "not established", "pending", "once confirmed", "subject to", "does not say", "is not stated", "unclear", "later date"],
+}
+GENERIC_UNKNOWNS = {
+    "fr": ["Quand la prochaine mise à jour publique sera-t-elle publiée ?", "Où les résidents peuvent-ils poser une question de suivi ?"],
+    "en": ["When will the next public update be published?", "Where can residents ask a follow-up question?"],
+}
+
+
+def derive_notice_content(notice: dict[str, Any], use_model: bool = True) -> dict[str, Any]:
+    """facts / unknowns / plain_language for a published notice, read from its
+    own text. Model first when allowed and connected; otherwise sentence
+    heuristics in the notice's language. Never invents dates or amounts."""
+    is_french = notice.get("country") in FRENCH_COUNTRIES
+    lang = "fr" if is_french else "en"
+    text = " ".join(f"{notice.get('summary', '')} {notice.get('body', '')}".split())
+    if use_model and OLLAMA_MODEL and len(text) > 40:
+        generated = ollama_explain(text, notice.get("title", ""), "Français" if is_french else "English")
+        if generated:
+            norm = lambda value: re.sub(r"[^a-z0-9àâçéèêëîïôûùüÿœ]+", "", str(value).lower())
+            open_points = {norm(item) for item in generated["unknowns"]}
+            facts = [item for item in generated["facts"] if norm(item) not in open_points and not any(marker in item.lower() for marker in UNCERTAINTY_MARKERS[lang])]
+            return {"facts": facts or generated["facts"][:2], "unknowns": generated["unknowns"], "plain_language": generated["plain_language"], "derived_by": "ollama"}
+    sentences = [part.strip().rstrip(";:,").strip() for part in re.split(r"(?<=[.!?;])\s+", text) if len(part.strip()) > 12]
+    unknowns = [sent for sent in sentences if any(marker in sent.lower() for marker in UNCERTAINTY_MARKERS[lang])]
+    facts = [sent for sent in sentences if sent not in unknowns][:4] or [notice.get("summary", "")]
+    for generic in GENERIC_UNKNOWNS[lang]:
+        if len(unknowns) >= 3:
+            break
+        unknowns.append(generic)
+    return {"facts": facts, "unknowns": unknowns[:4], "plain_language": notice.get("summary", ""), "derived_by": "heuristics"}
+
+
 def published_notice_record(notice: dict[str, Any]) -> dict[str, Any]:
     """Normalize a publisher notice into the same reviewable record shape."""
     title = notice["title"]
@@ -735,6 +772,9 @@ def published_notice_record(notice: dict[str, Any]) -> dict[str, Any]:
     is_french = notice.get("country") in FRENCH_COUNTRIES
     date = notice.get("date", "À l’instant" if is_french else "Just published")
     responsible = notice.get("responsible_office") or notice.get("office") or ("Guichet d’information publique" if is_french else "Public Information Desk")
+    derived = {"facts": notice.get("facts"), "unknowns": notice.get("unknowns"), "plain_language": notice.get("plain_language")}
+    if not derived["facts"] or not derived["unknowns"]:
+        derived = derive_notice_content(notice, use_model=False)
     if is_french:
         return {
             "id": notice["id"], "title": title, "category": notice.get("category", "Avis public"),
@@ -742,14 +782,14 @@ def published_notice_record(notice: dict[str, Any]) -> dict[str, Any]:
             "source_date": date, "source_label": f"{responsible} · publication locale",
             "source_title": "Avis du guichet local — non vérifié de manière indépendante",
             "source_url": source,
-            "provenance_status": "local-demo",
-            "provenance_note": "Cet avis a été saisi dans la simulation du guichet local ; il n’est pas vérifié de manière indépendante.",
-            "status": "Publié localement", "status_detail": "Vérification indépendante en attente", "summary": summary,
-            "plain_language": summary,
-            "facts": [summary, notice.get("body") or summary, "Publié par " + (notice.get("office") or "le guichet d’information publique") + "."],
-            "unknowns": ["Que se passe-t-il ensuite ?", "Quand la prochaine mise à jour publique sera-t-elle publiée ?", "Où les résidents peuvent-ils poser une question de suivi ?"],
+            "provenance_status": "published",
+            "provenance_note": "Avis publié par " + (notice.get("office") or responsible) + " via le portail d’information publique ; il n’a pas été vérifié de manière indépendante.",
+            "status": "Avis publié par le bureau", "status_detail": "Non vérifié de manière indépendante", "summary": summary,
+            "plain_language": derived["plain_language"] or summary,
+            "facts": derived["facts"],
+            "unknowns": derived["unknowns"],
             "perspectives": [{"label": "Question communautaire", "body": "Les résidents peuvent consulter la source et demander une prochaine étape datée."}],
-            "evidence": [{"label": "Publication locale", "quote": notice.get("body") or summary, "page": "Source web", "kind": "illustrative"}],
+            "evidence": [{"label": "Avis publié", "quote": notice.get("body") or summary, "page": "Portail d’information publique", "kind": "published"}],
             "timeline": [{"date": date, "label": "Avis publié", "detail": "Le guichet d’information publique a ajouté cette mise à jour au fil des sources.", "state": "done"}, {"date": "—", "label": "Prochaine mise à jour publique", "detail": "La source ne mentionne pas de date de suivi confirmée.", "state": "pending"}],
             "channels": {"web": f"Ouvrez la source publiée sur {source}.", "voice": "Écoutez le résumé en langage simple sur une radio partagée ou un téléphone à touches.", "text": "Recevez la même mise à jour source par un échange léger WhatsApp ou SMS."},
         }
@@ -759,14 +799,14 @@ def published_notice_record(notice: dict[str, Any]) -> dict[str, Any]:
         "source_date": date, "source_label": f"{responsible} · local publication",
         "source_title": "Local publisher notice — not independently verified",
         "source_url": source,
-        "provenance_status": "local-demo",
-        "provenance_note": "This notice was entered into the local publisher simulation; it is not independently verified.",
-        "status": "Published locally", "status_detail": "Independent verification pending", "summary": summary,
-        "plain_language": summary,
-        "facts": [summary, notice.get("body") or summary, "Published by " + notice.get("office", "the public information desk") + "."],
-        "unknowns": ["What happens next?", "When will the next public update be issued?", "Where can residents ask a follow-up question?"],
+        "provenance_status": "published",
+        "provenance_note": "Notice published by " + (notice.get("office") or responsible) + " through the public information portal; it has not been independently verified.",
+        "status": "Notice published by the office", "status_detail": "Not independently verified", "summary": summary,
+        "plain_language": derived["plain_language"] or summary,
+        "facts": derived["facts"],
+        "unknowns": derived["unknowns"],
         "perspectives": [{"label": "Community question", "body": "Residents can review the source and ask for a dated next step."}],
-        "evidence": [{"label": "Local publication", "quote": notice.get("body") or summary, "page": "Web source", "kind": "illustrative"}],
+        "evidence": [{"label": "Published notice", "quote": notice.get("body") or summary, "page": "Public information portal", "kind": "published"}],
         "timeline": [{"date": date, "label": "Notice published", "detail": "The public information desk added this update to the source feed.", "state": "done"}, {"date": "—", "label": "Next public update", "detail": "The source does not state a confirmed follow-up date.", "state": "pending"}],
         "channels": {"web": f"Open the published source at {source}.", "voice": "Listen to the plain-language summary on a shared radio or basic keypad phone.", "text": "Receive the same source-backed update through a lightweight WhatsApp or SMS-style exchange."},
     }
@@ -829,9 +869,12 @@ def session_user(token: str) -> dict[str, Any] | None:
         return USERS.get(user_id) if user_id else None
 
 
-def register_notice(notice: dict[str, Any]) -> None:
+def register_notice(notice: dict[str, Any], use_model: bool = True) -> None:
     """Add a published notice to the record store, the news feed, the issue
-    tracker and the publisher list (newest first)."""
+    tracker and the publisher list (newest first). Facts and unknowns are
+    read from the notice text first, so the app never shows boilerplate."""
+    if not notice.get("facts") or not notice.get("unknowns"):
+        notice.update(derive_notice_content(notice, use_model=use_model))
     RECORDS[notice["id"]] = published_notice_record(notice)
     is_french = notice.get("country") in FRENCH_COUNTRIES
     NEWS.insert(0, {"id": notice["id"], "headline": notice["title"], "type": notice["category"], "date": notice["date"], "status": "Published locally", "locality": notice["locality"], "source": f"{notice['office']} · local publication", "summary": notice["summary"], "languages": ["Français" if is_french else "English"]})
