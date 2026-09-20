@@ -1939,7 +1939,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             # Version every static asset URL with its file's mtime so a browser
             # can never keep running an old script or stylesheet after a deploy.
             def versioned(match: re.Match[str]) -> str:
-                asset = PUBLIC / match.group(1).lstrip("/")
+                asset = PUBLIC / match.group(0).lstrip("/")
                 stamp = int(asset.stat().st_mtime) if asset.exists() else 0
                 return f'{match.group(0)}?v={stamp}'
             payload = re.sub(r'(?<=["\'])/?static/[A-Za-z0-9_./-]+\.(?:js|css)(?=["\'?])', versioned, payload.decode("utf-8")).encode("utf-8")
