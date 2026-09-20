@@ -1,35 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Public information portal for civic notices, services, and representative updates." />
-  <title>Public Information Service · Government notices portal</title>
+  <meta name="description" content="Official public information portal: notices, offices and publication service." />
+  <title>Public information portal</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="stylesheet" href="/static/publisher.css" />
-  <link rel="stylesheet" href="/static/publisher-source.css" />
 </head>
 <body>
-  <div class="gov-strip"><div class="gov-wrap"><span>PUBLIC INFORMATION SERVICE</span><span>Accessible information · Open records · Community updates</span></div></div>
+  <div class="gov-strip"><div class="gov-wrap"><span id="strip-state">—</span><label class="strip-switch"><span id="strip-switch-label">Pays</span><select id="portal-country"></select></label></div></div>
   <header class="gov-header">
     <div class="gov-wrap gov-header-inner">
-      <a class="gov-brand" href="/publisher" aria-label="Public Information Service home"><span class="gov-seal" aria-hidden="true"><span>✦</span></span><span><strong>PUBLIC INFORMATION</strong><small>Service portal</small></span></a>
-      <div class="gov-header-actions"><span class="office-status"><i></i> Service online</span></div>
+      <a class="gov-brand" href="/publisher"><span class="gov-seal" aria-hidden="true"><span>✦</span></span><span><strong id="brand-title">—</strong><small id="brand-subtitle">—</small></span></a>
+      <div class="gov-header-actions"><span class="office-status"><i></i> <span id="status-online">—</span></span></div>
     </div>
   </header>
-  <nav class="gov-nav"><div class="gov-wrap nav-inner"><a class="active" href="#notices">Notices &amp; alerts</a><a href="#offices">Offices</a><a href="#records">Services</a><a href="#records">Public records</a><span class="nav-spacer"></span><span class="nav-context" id="portal-context">Kisumu County · Kenya</span></div></nav>
+  <nav class="gov-nav"><div class="gov-wrap nav-inner"><a class="active" href="#notices" id="nav-notices">—</a><a href="#offices" id="nav-offices">—</a><a href="#publish" id="nav-publish">—</a><span class="nav-spacer"></span><a class="nav-resident" href="/" id="nav-resident">—</a></div></nav>
   <main class="gov-wrap portal-main">
-    <div class="breadcrumb"><a href="/publisher">Home</a><span>/</span><span>Public information portal</span></div>
-    <section class="portal-intro"><div><p class="section-label">OFFICE OF PUBLIC INFORMATION</p><h1>Updates from the offices serving your community.</h1><p>Find official notices, service updates, and the people responsible for following them through.</p></div><div class="intro-stamp"><span>LAST UPDATED</span><strong id="last-updated">Today</strong><small>Information desk</small></div></section>
+    <section class="portal-intro"><div><p class="section-label" id="intro-label">—</p><h1 id="intro-title">—</h1><p id="intro-body">—</p></div><div class="intro-stamp"><span id="stamp-label">—</span><strong id="last-updated">—</strong><small id="stamp-note">—</small></div></section>
+
     <section class="portal-grid" id="notices">
-      <div class="portal-content"><div class="section-heading"><div><p class="section-label">PUBLIC NOTICES</p><h2>Latest updates</h2></div><span class="record-count" id="notice-count">0 published</span></div><div id="featured-notice" class="featured-notice"><div class="featured-placeholder"><span class="loader-dot"></span> Loading public notices…</div></div><div id="recent-notices" class="notice-list"></div></div>
-      <aside class="portal-rail"><div class="rail-card area-card"><div class="rail-label">YOUR SERVICE AREA</div><h3 id="area-name">Kisumu</h3><p id="area-region">Kisumu County · Kenya</p></div><div class="rail-card"><div class="rail-label">QUICK SERVICES</div><a href="#notices" class="service-link"><span class="service-icon">▣</span><span><strong>Public notices</strong><small>Decisions and announcements</small></span><b>→</b></a><a href="#offices" class="service-link"><span class="service-icon">◎</span><span><strong>Find an office</strong><small>Representatives and contacts</small></span><b>→</b></a><a href="#records" class="service-link"><span class="service-icon">≋</span><span><strong>Open records</strong><small>Source and publication history</small></span><b>→</b></a></div></aside>
+      <div class="portal-content"><div class="section-heading"><div><p class="section-label" id="notices-label">—</p><h2 id="notices-title">—</h2></div><span class="record-count" id="notice-count"></span></div><div id="featured-notice" class="featured-notice"></div><div id="recent-notices" class="notice-list"></div><button type="button" class="more-button" id="more-notices" hidden>—</button></div>
+      <aside class="portal-rail">
+        <div class="rail-card area-card"><div class="rail-label" id="area-label">—</div><h3 id="area-name">—</h3><p id="area-region">—</p></div>
+        <div class="rail-card"><div class="rail-label" id="filter-label">—</div><div id="category-filter" class="category-filter"></div></div>
+      </aside>
     </section>
-    <section class="source-section" id="source-library"><div class="section-heading"><div><p class="section-label">OFFICIAL SOURCE LIBRARY</p><h2>Documents for this country</h2></div><span class="record-count">Public material</span></div><div id="source-library-list" class="source-library-list"></div></section>
-    <section class="office-section" id="offices"><div class="section-heading"><div><p class="section-label">OFFICES &amp; REPRESENTATIVES</p><h2>People responsible for follow-through</h2></div><span class="record-count">Public directory</span></div><div id="office-directory" class="office-grid"></div></section>
-    <section class="publisher-section" id="records"><div class="publisher-heading"><div><p class="section-label">AUTHORIZED WORKSPACE</p><h2>Publish a public notice</h2><p>Add a source that residents can review through their civic information channels. The office, locality, time, and next step travel with it.</p></div><span class="publish-badge"><i></i> Publishing service</span></div><div id="publisher-auth" class="publisher-auth"></div><form id="notice-form" class="notice-form"><div class="form-row"><label>Publishing office<input id="office" name="office" value="Public Information Desk" /></label><label>Responsible office<select id="responsible_office" name="responsible_office"><option value="">Select an office</option></select></label></div><div class="form-row"><label>Headline<input id="title" name="title" required placeholder="Example: Water point consultation opens" /></label><label>Locality<input id="locality" name="locality" required value="Kisumu" /></label></div><div class="form-row"><label>Category<select id="category" name="category"><option>Transparency &amp; accountability</option><option>Stability &amp; social cohesion</option><option>Safety, reporting &amp; protection</option><option>Public service update</option></select></label><label>Publication reference <span class="optional">optional</span><input id="source_url" name="source_url" placeholder="Notice number or source link" /></label></div><label>Public summary<textarea id="summary" name="summary" required rows="3" placeholder="What should residents understand first?"></textarea></label><label>Evidence and next step<textarea id="body" name="body" rows="4" placeholder="Add the date, source detail, office contact, or next step that should remain visible."></textarea></label><div class="form-footer"><p>Once published, the notice enters the public record and reaches connected civic information channels within seconds.</p><button class="publish-button" type="submit"><span>Publish to public record</span><span>→</span></button></div></form></section>
+
+    <section class="office-section" id="offices"><div class="section-heading"><div><p class="section-label" id="offices-label">—</p><h2 id="offices-title">—</h2></div></div><div id="office-directory" class="office-grid"></div></section>
+
+    <section class="publisher-section" id="publish"><div class="publisher-heading"><div><p class="section-label" id="publish-label">—</p><h2 id="publish-title">—</h2><p id="publish-body">—</p></div></div><div id="publisher-auth" class="publisher-auth"></div>
+      <form id="notice-form" class="notice-form">
+        <div class="form-row"><label><span id="f-office">—</span><select id="responsible_office" name="responsible_office" required></select></label><label><span id="f-category">—</span><select id="category" name="category"></select></label></div>
+        <div class="form-row"><label><span id="f-title">—</span><input id="title" name="title" required /></label><label><span id="f-locality">—</span><input id="locality" name="locality" required /></label></div>
+        <label><span id="f-summary">—</span><textarea id="summary" name="summary" required rows="3"></textarea></label>
+        <label><span id="f-body">—</span><textarea id="body" name="body" rows="4"></textarea></label>
+        <label><span id="f-ref">—</span><input id="source_url" name="source_url" /></label>
+        <div class="form-footer"><p id="f-note">—</p><button class="publish-button" type="submit"><span id="f-submit">—</span><span>→</span></button></div>
+      </form>
+    </section>
   </main>
-  <footer class="gov-footer"><div class="gov-wrap"><div><strong>PUBLIC INFORMATION SERVICE</strong><p>Clear information for the people and communities it affects.</p></div><span>Official notices &amp; public records</span></div></footer>
+  <footer class="gov-footer"><div class="gov-wrap"><div><strong id="footer-title">—</strong><p id="footer-body">—</p></div><span id="footer-note">—</span></div></footer>
   <div id="publisher-toast" class="publisher-toast" role="status"></div>
   <script src="/static/publisher.js"></script>
 </body>

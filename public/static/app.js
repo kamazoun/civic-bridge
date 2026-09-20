@@ -2972,8 +2972,19 @@ async function boot() {
   }
   pollPublisherNotices();
   window.setInterval(pollPublisherNotices, 1000);
+  // Deep link from a share or from the portal: open the record, switching
+  // the area to the notice's own country/locality when needed.
   const deepLink = location.hash.match(/^#record\/(.+)$/);
-  if (deepLink && state.dashboard.area && state.records.some((record) => record.id === decodeURIComponent(deepLink[1]))) setRoute("record", decodeURIComponent(deepLink[1]));
+  if (deepLink) {
+    const id = decodeURIComponent(deepLink[1]);
+    const notice = state.publishedNotices.find((item) => item.id === id);
+    if (notice && notice.country && state.dashboard.country !== notice.country) {
+      state.locationCountry = notice.country; state.locationRegion = notice.region || ""; state.locationLocality = notice.locality || "";
+      state.dashboard.country = notice.country; state.dashboard.region = notice.region || notice.country; state.dashboard.area = notice.locality || notice.region || notice.country;
+      applyAreaContext(); persistLocation(); shouldAutoDetect = false;
+    }
+    if (state.records.some((record) => record.id === id)) setRoute("record", id);
+  }
   if (shouldAutoDetect) {
     autoDetectLocation().then((detected) => {
       if (!detected || !detected.locality || state.dashboard.area) return;

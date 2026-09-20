@@ -180,7 +180,7 @@ All configuration is by environment variable.
 
 **Access channels.** Subscriptions by WhatsApp, SMS, email, and voice call, plus community join cards. Records carry per-channel wording (`web`, `voice`, `text`).
 
-**Public Information Portal.** `/publisher` is a separately styled portal for a publishing office: a notice form, an office directory, and a source library of public documents per country. A published notice becomes a record, an issue, and a news item in the country's language; the resident application polls the notice feed every second, so it appears without a reload. The ingestion contract is described in [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md).
+**Public Information Portal.** `/publisher` is the office side: rendered as the official information portal of the selected country's region, in its administrative language and flag colours (`PORTALS` in `publisher.js`) — the state and motto, the issuing body, notices filterable by subject, an office directory with each office's remit and live counts, and an officers' workspace where signed-in office accounts publish. A published notice enters the public record at once, becomes a record, an issue and a news item in the app, and every portal card deep-links to it (`/#record/{id}`). The ingestion contract is described in [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md).
 
 **Community.** Independent *Helpful* / *Needs more clarity* toggles, comments, resident-authored perspectives, share. Community data is scoped per country, so the same reference record carries different conversations in Lomé and Nairobi.
 
@@ -236,7 +236,7 @@ The same shape is used for records created by *Explain a source* and for records
 |---|---|---|
 | Selected area, session token, preferences, follows, subscriptions | Browser `localStorage`, keyed per account | Until cleared by the user |
 | Accounts, sessions, comments, votes, perspectives, feedback drafts, right-of-reply responses, published notices, explained sources, shares | Server memory, one lock per collection, snapshotted to `$CIVIC_BRIDGE_DATA_DIR/state.json` after every write (atomic rename) | Persistent while that file persists; seeded again by `seed_data.py` if it is absent |
-| Reference records, representatives, source library | Generated at start-up from `app.py` | Immutable |
+| Reference records, representatives | Generated at start-up from `app.py` | Immutable |
 
 ### 5.4 Local AI integration
 
@@ -278,7 +278,7 @@ All endpoints return JSON. Mutating endpoints identify the account by a session 
 | GET | `/api/health` | Liveness check |
 | GET | `/api/ai-status` | Ollama configuration, reachability, model availability, runtime |
 | GET | `/api/session` | Account mode, role labels, number of registered accounts |
-| GET | `/api/bootstrap` | Product configuration, country contexts, localities, source library, saved drafts |
+| GET | `/api/bootstrap` | Product configuration, country contexts, localities, saved drafts |
 | GET | `/api/dashboard` | Area metrics |
 | GET | `/api/localities` | Pilot areas |
 
@@ -347,7 +347,6 @@ public/
   static/publisher.js          Portal logic
   static/styles.css            Resident application styles
   static/publisher.css         Portal styles
-  static/publisher-source.css  Portal source-library styles
   static/images/               Office portraits
 docs/
   ACCOUNTS.md                  Demo and seeded office accounts
