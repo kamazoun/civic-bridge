@@ -168,6 +168,8 @@ All configuration is by environment variable.
 
 **Groups.** A group is everyone in a country whose profile lists a topic — computed, never stored, shown as a count and a list of localities, never a member list (`GET /api/groups`, `/api/groups/{topic}`). Each group has its own conversation and the records on that topic; every record's "Who else this lands on" card links to its group. Signed-in accounts sync their topics to the server (`POST /api/profile/interests`) so groups follow the account.
 
+**Questions with an owner.** "Send to ‹office›" publishes the question on the record (under *Questions to ‹office›*) and on the office's page (*Questions received*), where an office account can reply with one click ("Reply to this →" pre-fills the right of reply). *My questions* lists what you sent, to whom, and whether that office has replied since. Answers — and silence — are public.
+
 **Anonymous participation.** Comments, perspectives and group posts can be posted as "A resident of Lomé (market trade)": the persona carries only a topic and a locality, the account id stays server-side and is stripped from every public view (`public_post`), and no phone number is ever attached to a post.
 
 **Representatives.** A four-level institutional hierarchy per country using its own administrative vocabulary. Each office has a profile whose statistics — records on file, sourced records, questions received, office replies, response rate, community pulse, last activity — are computed live from activity on the platform (`representative_stats` in `app.py`), a track record, a focus area, follow/watchlist, and a labelled right of reply that only office accounts can post. Portraits resolve per country and level from `public/static/images/reps/{country}-{level}.jpeg`.
@@ -311,8 +313,8 @@ All endpoints return JSON. Mutating endpoints identify the account by a session 
 | Method | Path | Description |
 |---|---|---|
 | POST | `/api/feedback/draft` | Structured reviewable draft (model or template) |
-| POST | `/api/feedback` | Save a draft for review |
-| GET | `/api/feedback` | Saved drafts |
+| POST | `/api/feedback` | Send a question to the record's responsible office (public; `anonymous`, `persona` optional; signed-in) |
+| GET | `/api/feedback?token=` | The caller's sent questions, each with `office_replied` |
 | POST | `/api/sources/explain` | Text, URL, or base64 PDF → new record |
 | POST | `/api/profile/interpret` | Free-text description (any language) → `interests` (controlled topic ids) + `understood` sentence; model or keyword fallback |
 | POST | `/api/profile/interests` | Save a signed-in account's edited topics (drives group membership) |

@@ -697,7 +697,10 @@ def representative_stats(country: str, representative: dict[str, Any]) -> dict[s
     questions = comments + perspectives + drafts
     stamps = [n.get("published_at", "") for n in notices] + [r.get("created_at", "") for r in responses]
     last_update = max(stamps) if stamps else None
+    with FEEDBACK_LOCK:
+        received = [public_post(item) for item in FEEDBACK if item.get("record_id") in record_ids and item.get("country", country) == country][:12]
     return {
+        "questions": received,
         "commitments": len(records),
         "verified": sourced,
         "questions_received": questions,
@@ -1573,7 +1576,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 people = [public_user(u) for u in USERS.values() if not country or u.get("country") in ("", country)]
             return self.send_json({"people": people[:200], "total": len(people)})
         if path == "/api/bootstrap":
-            return self.send_json({"product_name": PRODUCT_NAME, "tagline": "Understand the source. Speak your view. Follow through.", "records": list(RECORDS.values()), "feedback": FEEDBACK, "dashboard": DASHBOARD, "issues": ISSUES, "representatives": REPRESENTATIVES, "news": NEWS, "localities": LOCALITIES, "locations": LOCATION_OPTIONS, "source_library": SOURCE_LIBRARY, "country_contexts": COUNTRY_CONTEXTS})
+            return self.send_json({"product_name": PRODUCT_NAME, "tagline": "Understand the source. Speak your view. Follow through.", "records": list(RECORDS.values()), "feedback": [], "dashboard": DASHBOARD, "issues": ISSUES, "representatives": REPRESENTATIVES, "news": NEWS, "localities": LOCALITIES, "locations": LOCATION_OPTIONS, "source_library": SOURCE_LIBRARY, "country_contexts": COUNTRY_CONTEXTS})
         if path == "/api/dashboard":
             return self.send_json(DASHBOARD)
         if path == "/api/issues":
@@ -1625,13 +1628,24 @@ class DemoHandler(BaseHTTPRequestHandler):
             user_id = viewer["id"] if viewer else parse_qs(parsed.query).get("user_id", [""])[0]
             with PERSPECTIVES_LOCK:
                 submitted_perspectives = [public_post(item) for item in PERSPECTIVES.get(key, [])]
-            return self.send_json({"comments": comments, "votes": counts, "selected_vote": vote_map.get(user_id, []), "perspectives": submitted_perspectives})
+            country = parse_qs(parsed.query).get("country", [""])[0]
+            with FEEDBACK_LOCK:
+                questions = [public_post(item) for item in FEEDBACK if item.get("record_id") == record_id and item.get("country", country) == country]
+            return self.send_json({"questions": questions, "comments": comments, "votes": counts, "selected_vote": vote_map.get(user_id, []), "perspectives": submitted_perspectives})
         if path.startswith("/api/records/"):
             record_id = path.removeprefix("/api/records/")
             record = RECORDS.get(record_id)
             return self.send_json(record) if record else self.send_error_json("Record not found", HTTPStatus.NOT_FOUND)
         if path == "/api/feedback":
-            return self.send_json({"feedback": FEEDBACK})
+            viewer = demo_user(parse_qs(parsed.query).get("token", [""])[0])
+            with FEEDBACK_LOCK:
+                mine = [item for item in FEEDBACK if viewer and item.get("user_id") == viewer["id"]]
+            # Has the office replied since the question was sent?
+            with REP_RESPONSES_LOCK:
+                for item in mine:
+                    replies = REP_RESPONSES.get(response_key(item.get("country", ""), item.get("office_id", "")), [])
+                    item["office_replied"] = any(reply.get("created_at", "") > item.get("created_at", "") for reply in replies)
+            return self.send_json({"feedback": mine})
         return self.send_error_json("Not found", HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802
@@ -1802,10 +1816,15 @@ class DemoHandler(BaseHTTPRequestHandler):
             if not draft:
                 return self.send_error_json("Draft is required.")
             author = demo_user(str(data.get("token", "")))
+            if not author:
+                return self.send_error_json("Sign in to send a question to the office.", HTTPStatus.UNAUTHORIZED)
+            anonymous = bool(data.get("anonymous"))
+            persona = " ".join(str(data.get("persona", "")).split())[:80]
             item = {
                 "id": uuid.uuid4().hex[:10],
-                "user_id": author["id"] if author else "",
-                "user_label": author["label"] if author else "",
+                "user_id": author["id"],
+                "user_label": persona or ("Anonymous resident" if anonymous else author["label"]),
+                "anonymous": anonymous,
                 "record_id": record["id"],
                 "record_title": record["title"],
                 "original": original,
@@ -1814,14 +1833,15 @@ class DemoHandler(BaseHTTPRequestHandler):
                 "language": str(data.get("language", "English")),
                 "country": str(data.get("country", "")),
                 "office": " ".join(str(data.get("office", "")).split())[:120],
+                "office_id": " ".join(str(data.get("office_id", "")).split())[:40],
                 "question": " ".join(str(data.get("question", "")).split())[:300],
-                "status": "Draft saved — not yet sent",
+                "status": "Sent to office",
                 "created_at": now_iso(),
             }
             with FEEDBACK_LOCK:
                 FEEDBACK.insert(0, item)
             save_state()
-            return self.send_json(item, HTTPStatus.CREATED)
+            return self.send_json(public_post(item), HTTPStatus.CREATED)
         if parsed.path.startswith("/api/records/") and parsed.path.endswith("/comments"):
             record_id = parsed.path.removeprefix("/api/records/").removesuffix("/comments").strip("/")
             user = demo_user(str(data.get("token", "")))

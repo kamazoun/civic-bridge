@@ -25,6 +25,7 @@ const state = {
   repResponses: {},
   repStats: null,
   askUnknown: null,
+  feedbackLoadedFor: null,
   groups: [],
   groupTopic: null,
   group: null,
@@ -83,6 +84,7 @@ const HELP = {
     understood: "The app's reading of what you typed, turned into topics from a fixed list. It is a guess: remove or add topics; your edit always wins. Nothing sensitive is kept.",
     groups: "A group is everyone in your country whose profile lists the same topic. You see a count and a conversation, never a member list.",
     anonymous: "Posts as “A resident of <your area> (<your first topic>)”. Your account is never attached to the post.",
+    questions: "Questions residents sent to this office through the record. They are public, so the office's answer — or its silence — is visible to everyone. The office replies with its right of reply.",
   },
   fr: {
     published_notice: "Un avis qu’un bureau a publié sur le portail d’information publique. C’est exactement ce que le bureau a écrit — vérifié par personne d’autre — et le bureau émetteur est nommé sur la fiche.",
@@ -99,11 +101,12 @@ const HELP = {
     understood: "La lecture que fait l’application de ce que vous avez tapé, traduite en thèmes d’une liste fixe. C’est une hypothèse : retirez ou ajoutez des thèmes ; votre correction l’emporte toujours. Rien de sensible n’est conservé.",
     groups: "Un groupe, c’est toutes les personnes de votre pays dont le profil mentionne le même thème. Vous voyez un nombre et une conversation, jamais une liste de membres.",
     anonymous: "Publie en tant que « Un·e résident·e de <votre zone> (<votre premier thème>) ». Votre compte n’est jamais attaché au message.",
+    questions: "Les questions que les résidents ont envoyées à ce bureau via la fiche. Elles sont publiques : la réponse du bureau — ou son silence — est visible de tous. Le bureau répond par son droit de réponse.",
   },
 };
 
 function statusLabel(status) {
-  const map = { "Open question": "status_open_question", "Needs update": "status_needs_update", "Published locally": "status_published_locally", "New public update": "status_new_public_update" };
+  const map = { "Sent to office": "status_sent_to_office", "Open question": "status_open_question", "Needs update": "status_needs_update", "Published locally": "status_published_locally", "New public update": "status_new_public_update" };
   return map[status] ? t(map[status]) : status;
 }
 
@@ -156,7 +159,7 @@ const STRINGS = {
     lands_on_body: (n, topic, area) => `${n} people in your country list ${topic} in their profile. You are not working this out alone.`,
     lands_on_body_unknown: (topic) => `People whose profile lists ${topic} see this record first too.`,
     open_group_arrow: "Open the group →",
-    nav_feedback: "My feedback",
+    nav_feedback: "My questions",
     sidebar_saved_records: "Latest records",
     sidebar_all_records: (n) => `All ${n} records →`,
     sidebar_review_title: "Review before sharing",
@@ -331,6 +334,7 @@ const STRINGS = {
     filter_notices: "Published notices",
     filter_reference: "Reference records",
     status_open_question: "Open question",
+    status_sent_to_office: "Sent to the office",
     status_needs_update: "Needs update",
     status_published_locally: "Published locally",
     status_new_public_update: "New public update",
@@ -535,6 +539,20 @@ const STRINGS = {
     prepared_by_ollama: "Prepared by a local Ollama model",
     prepared_by_fallback: "Prepared by the local fallback",
     save_draft: "Save draft",
+    send_to_office: (office) => `Send to ${office}`,
+    send_note: "Your question is published on this record and on the office's page, so its answer — or its silence — is public.",
+    toast_question_sent: (office) => `Sent to ${office}. It is now on the record.`,
+    questions_to_office_eyebrow: (office) => `QUESTIONS TO ${office}`,
+    no_questions_yet: "No question has been sent to the office about this record yet.",
+    ask_the_office_arrow: "Ask the office →",
+    questions_received_eyebrow: "QUESTIONS RECEIVED",
+    no_questions_received: "No question received yet.",
+    reply_to_this: "Reply to this →",
+    re_prefix: "Re:",
+    office_replied: "Office replied since",
+    awaiting_reply: "Awaiting the office's reply",
+    sent_anonymously: "sent anonymously",
+    sign_in_to_see_questions: "Sign in to see the questions you sent.",
     community_view_eyebrow: "COMMUNITY VIEW",
     community_view_title: "Keep agreement and difference visible.",
     community_view_body: "A useful summary shows what is shared, what is unanswered, and where priorities differ.",
@@ -572,12 +590,12 @@ const STRINGS = {
     design_promise_title: "Same evidence, less friction.",
     design_promise_body: "A person should not need a high-bandwidth device or specialist vocabulary to find the source and ask a useful question.",
     // Feedback list
-    my_feedback_eyebrow: "MY FEEDBACK",
-    my_feedback_title: "Drafts with a<br />traceable source.",
-    my_feedback_body: "Keep your original words, the reviewable draft, and its status together.",
-    saved_drafts_count: (n) => `${n} saved draft${n === 1 ? "" : "s"}`,
-    nothing_sent_note: "Nothing is sent until you choose to send it",
-    no_drafts_yet: "No drafts yet. Open a record and create a reviewable question.",
+    my_feedback_eyebrow: "MY QUESTIONS",
+    my_feedback_title: "What you asked,<br />and who owes an answer.",
+    my_feedback_body: "Every question you sent, the office it is addressed to, and whether that office has replied since.",
+    saved_drafts_count: (n) => `${n} question${n === 1 ? "" : "s"} sent`,
+    nothing_sent_note: "Questions are public on the record and on the office's page",
+    no_drafts_yet: "No question sent yet. Open a record, click what the source does not say, and send it to the office.",
     // Boot / errors
     open_through_server_title: "Open Civic Bridge through the local server",
     // Explain a source
@@ -802,7 +820,7 @@ const STRINGS = {
     lands_on_body: (n, topic, area) => `${n} personnes de votre pays ont « ${topic} » dans leur profil. Vous n’êtes pas seul·e à devoir comprendre ceci.`,
     lands_on_body_unknown: (topic) => `Les personnes dont le profil mentionne « ${topic} » voient aussi cette fiche en premier.`,
     open_group_arrow: "Ouvrir le groupe →",
-    nav_feedback: "Mes retours",
+    nav_feedback: "Mes questions",
     sidebar_saved_records: "Dernières fiches",
     sidebar_all_records: (n) => `Toutes les ${n} fiches →`,
     sidebar_review_title: "Relisez avant de partager",
@@ -967,6 +985,7 @@ const STRINGS = {
     filter_notices: "Avis publiés",
     filter_reference: "Fiches de référence",
     status_open_question: "Question ouverte",
+    status_sent_to_office: "Envoyée au bureau",
     status_needs_update: "Mise à jour requise",
     status_published_locally: "Publié localement",
     status_new_public_update: "Nouvelle mise à jour publique",
@@ -1163,6 +1182,20 @@ const STRINGS = {
     prepared_by_ollama: "Préparé par un modèle Ollama local",
     prepared_by_fallback: "Préparé par le mécanisme local de secours",
     save_draft: "Enregistrer le brouillon",
+    send_to_office: (office) => `Envoyer à ${office}`,
+    send_note: "Votre question est publiée sur cette fiche et sur la page du bureau : sa réponse — ou son silence — est publique.",
+    toast_question_sent: (office) => `Envoyé à ${office}. C’est maintenant au dossier.`,
+    questions_to_office_eyebrow: (office) => `QUESTIONS À ${office}`,
+    no_questions_yet: "Aucune question n’a encore été envoyée au bureau sur cette fiche.",
+    ask_the_office_arrow: "Interroger le bureau →",
+    questions_received_eyebrow: "QUESTIONS REÇUES",
+    no_questions_received: "Aucune question reçue pour l’instant.",
+    reply_to_this: "Répondre à ceci →",
+    re_prefix: "Réf. :",
+    office_replied: "Le bureau a répondu depuis",
+    awaiting_reply: "En attente de la réponse du bureau",
+    sent_anonymously: "envoyée anonymement",
+    sign_in_to_see_questions: "Connectez-vous pour voir les questions que vous avez envoyées.",
     community_view_eyebrow: "VUE COMMUNAUTAIRE",
     community_view_title: "Gardez visibles les accords et les désaccords.",
     community_view_body: "Un bon résumé montre ce qui est partagé, ce qui reste sans réponse, et où les priorités diffèrent.",
@@ -1197,12 +1230,12 @@ const STRINGS = {
     design_promise_eyebrow: "ENGAGEMENT DE CONCEPTION",
     design_promise_title: "Même preuve, moins de friction.",
     design_promise_body: "Personne ne devrait avoir besoin d’un appareil haut débit ou d’un vocabulaire spécialisé pour trouver la source et poser une question utile.",
-    my_feedback_eyebrow: "MES RETOURS",
-    my_feedback_title: "Des brouillons avec<br />une source traçable.",
-    my_feedback_body: "Gardez ensemble vos mots d’origine, le brouillon vérifiable et son statut.",
-    saved_drafts_count: (n) => `${n} brouillon${n === 1 ? "" : "s"} enregistré${n === 1 ? "" : "s"}`,
-    nothing_sent_note: "Rien n’est envoyé tant que vous ne le décidez pas",
-    no_drafts_yet: "Aucun brouillon pour l’instant. Ouvrez une fiche et créez une question vérifiable.",
+    my_feedback_eyebrow: "MES QUESTIONS",
+    my_feedback_title: "Ce que vous avez demandé,<br />et qui doit répondre.",
+    my_feedback_body: "Chaque question envoyée, le bureau à qui elle est adressée, et s’il a répondu depuis.",
+    saved_drafts_count: (n) => `${n} question${n === 1 ? "" : "s"} envoyée${n === 1 ? "" : "s"}`,
+    nothing_sent_note: "Les questions sont publiques sur la fiche et sur la page du bureau",
+    no_drafts_yet: "Aucune question envoyée. Ouvrez une fiche, cliquez sur ce que la source ne dit pas, et envoyez-la au bureau.",
     open_through_server_title: "Ouvrez Civic Bridge via le serveur local",
     nav_explain: "Expliquer une source",
     explain_eyebrow: "EXPLIQUER UNE SOURCE",
@@ -1798,6 +1831,7 @@ function setUser(user, created = false) {
   const guestPreferences = { ...state.preferences };
   const keys = ROLE_LABEL_KEYS[user.role_key];
   state.user = { ...user, role: keys ? t(keys[1]) : user.role };
+  state.feedbackLoadedFor = null; state.feedback = [];
   persistUser();
   try {
     const saved = JSON.parse(localStorage.getItem(`civic-bridge-followed-${user.id}`) || "null");
@@ -1815,6 +1849,7 @@ function setUser(user, created = false) {
 }
 
 function signOut() {
+  state.feedbackLoadedFor = null; state.feedback = [];
   if (state.user?.token) fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: state.user.token }) }).catch(() => {});
   state.user = null;
   persistUser();
@@ -1886,7 +1921,7 @@ async function loadCommunity(recordId) {
 function renderCommunityPanel(record) {
   const community = state.community[record.id] || { comments: [], votes: { helpful: 0, "needs-clarity": 0 }, selected_vote: [] };
   const selected = community.selected_vote || [];
-  return `<section class="panel community-panel"><div class="panel-heading"><div><span class="eyebrow">${t("community_pulse_eyebrow")}</span><h2>${t("community_pulse_title")}</h2></div><span class="live-pill"><i></i> ${t("community_signal")}</span></div><p class="panel-intro">${t("community_pulse_intro")}</p><div class="vote-row"><button class="vote-btn ${selected.includes("helpful") ? "selected" : ""}" data-vote="helpful"><span class="vote-icon">✓</span><span class="vote-text"><strong>${community.votes?.helpful || 0}</strong><small>${t("vote_helpful")}</small></span></button><button class="vote-btn needs-clarity ${selected.includes("needs-clarity") ? "selected" : ""}" data-vote="needs-clarity"><span class="vote-icon">!</span><span class="vote-text"><strong>${community.votes?.["needs-clarity"] || 0}</strong><small>${t("vote_needs_clarity")}</small></span></button></div><div class="comment-form"><label class="form-label" for="record-comment">${t("add_public_comment")}</label><textarea id="record-comment" class="feedback-textarea" placeholder="${t("comment_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="comment-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="submit-record-comment">${t("add_comment")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div><div class="comment-list"><span class="eyebrow">${t("community_comments_eyebrow")}</span>${community.comments?.length ? community.comments.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<p class="empty-comments">${t("community_comments_empty")}</p>`}</div></section>`;
+  return `<section class="panel community-panel"><div class="panel-heading"><div><span class="eyebrow">${t("community_pulse_eyebrow")}</span><h2>${t("community_pulse_title")}</h2></div><span class="live-pill"><i></i> ${t("community_signal")}</span></div><p class="panel-intro">${t("community_pulse_intro")}</p><div class="vote-row"><button class="vote-btn ${selected.includes("helpful") ? "selected" : ""}" data-vote="helpful"><span class="vote-icon">✓</span><span class="vote-text"><strong>${community.votes?.helpful || 0}</strong><small>${t("vote_helpful")}</small></span></button><button class="vote-btn needs-clarity ${selected.includes("needs-clarity") ? "selected" : ""}" data-vote="needs-clarity"><span class="vote-icon">!</span><span class="vote-text"><strong>${community.votes?.["needs-clarity"] || 0}</strong><small>${t("vote_needs_clarity")}</small></span></button></div><div class="questions-list"><span class="eyebrow">${t("questions_to_office_eyebrow", esc(responsibleOffice(record).name))} ${help("questions")}</span>${(community.questions || []).length ? (community.questions || []).map((item) => `<article class="comment-item question-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))} · ${esc(statusLabel(item.status))}</small></div>${item.question ? `<p class="asking-about">${esc(item.question)}</p>` : ""}<p>${esc(item.draft)}</p></article>`).join("") : `<div class="empty-reply">${t("no_questions_yet")}</div>`}<button class="text-btn" data-tab="feedback">${t("ask_the_office_arrow")}</button></div><div class="comment-form"><label class="form-label" for="record-comment">${t("add_public_comment")}</label><textarea id="record-comment" class="feedback-textarea" placeholder="${t("comment_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="comment-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="submit-record-comment">${t("add_comment")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div><div class="comment-list"><span class="eyebrow">${t("community_comments_eyebrow")}</span>${community.comments?.length ? community.comments.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<p class="empty-comments">${t("community_comments_empty")}</p>`}</div></section>`;
 }
 
 function persistLocation() {
@@ -2384,7 +2419,7 @@ function renderRepresentativeDetail() {
     <button class="breadcrumb" data-route="representatives">${t("back_to_representatives")}</button>
     <section class="rep-detail-header"><div class="rep-photo"><img src="${esc(representativeProfile(rep).photo)}" alt="${esc(representativeName(rep))}" onerror="this.onerror=null;this.src='${esc(representativeProfile(rep).fallback)}'" /></div><div class="rep-detail-copy"><span class="rep-level">${t("office_level_suffix", esc(rep.level))}</span><h1>${esc(representativeName(rep))}</h1><p>${esc(rep.name)} · ${esc(rep.role)} · ${esc(representativeLocality(rep))} · ${esc(rep.coverage)}</p><div class="rep-detail-actions"><button class="follow-btn ${state.followedRepresentatives.has(rep.id) ? "followed" : ""}" data-follow-detail="${esc(rep.id)}">${state.followedRepresentatives.has(rep.id) ? t("following") : t("follow_office")}</button><button class="secondary-btn" data-action="share-representative" data-share-title="${esc(representativeName(rep))}">${t("share_profile")}</button><span class="verified-label">${t("public_profile_verified")}</span></div></div></section>
     <div class="rep-stat-grid"><article class="rep-stat-card"><span>${t("stat_card_commitments")} ${help("records_on_file")}</span><strong>${rep.commitments}</strong><small>${t("stat_card_commitments_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_verified")} ${help("sourced")}</span><strong>${rep.verified}</strong><small>${t("stat_card_verified_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_response_rate")} ${help("response_rate")}</span><strong>${pctText(rep.response_rate)}</strong><small>${t("stat_card_response_rate_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_community_pulse")} ${help("community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong><small>${t("stat_card_community_pulse_detail")}</small></article></div>
-    <section class="section-grid rep-detail-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">${t("public_record_eyebrow")}</span><h2>${t("public_record_title")}</h2></div><span class="live-pill"><i></i> ${t("activity_statistics")}</span></div><p class="panel-intro">${t("public_record_body")}</p><div class="bar-list"><div class="bar-row"><div><span>${t("bar_commitments_evidence")}</span><strong>${verifiedPct}%</strong></div><div class="bar-track"><span style="width:${verifiedPct}%"></span></div></div><div class="bar-row"><div><span>${t("bar_questions_answered")}</span><strong>${pctText(rep.response_rate)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.response_rate)}%"></span></div></div><div class="bar-row"><div><span>${t("bar_community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.community_pulse)}%"></span></div></div></div><div class="public-record-list"><div><span>${t("list_last_update")}</span><strong>${esc(rep.last_update)}</strong></div><div><span>${t("list_questions_received")}</span><strong>${rep.questions_received}</strong></div><div><span>${t("list_updates_issued")}</span><strong>${rep.updates_issued}</strong></div><div><span>${t("list_office_replies")}</span><strong>${rep.responses_on_file || 0}</strong></div></div><p class="rep-bio">${esc(rep.bio)}</p></article><aside class="panel right-reply"><span class="eyebrow">${t("right_of_reply_eyebrow")}</span><h2>${t("right_of_reply_title")}</h2><p class="panel-intro">${t("right_of_reply_body")}</p>${userRole() === "office" ? `<label class="form-label" for="rep-response-type">${t("response_type_label")}</label><select id="rep-response-type" class="feedback-select"><option>${t("response_type_correct")}</option><option>${t("response_type_context")}</option><option>${t("response_type_source")}</option></select><label class="form-label" for="rep-response">${t("office_response_label")}</label><textarea id="rep-response" class="feedback-textarea" placeholder="${t("office_response_placeholder")}"></textarea><button class="primary-btn" id="submit-rep-response">${t("submit_response")}</button><p class="disclaimer">${t("response_disclaimer")}</p>` : `<p class="disclaimer office-only-note">${t("office_only_reply")}</p>`}<div class="reply-list"><span class="eyebrow">${t("responses_on_file_eyebrow")}</span>${responses.length ? responses.map((item) => `<div class="reply-item"><strong>${esc(item.type || t("office_response_fallback"))}</strong><p>${esc(item.message)}</p><small>${esc(item.user_label || t("office_response_fallback"))} · ${esc(item.status)} · ${esc(formatActivityDate(item.created_at))}</small></div>`).join("") : `<div class="empty-reply">${t("no_response_yet")}</div>`}</div></aside></section>
+    <section class="section-grid rep-detail-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">${t("public_record_eyebrow")}</span><h2>${t("public_record_title")}</h2></div><span class="live-pill"><i></i> ${t("activity_statistics")}</span></div><p class="panel-intro">${t("public_record_body")}</p><div class="bar-list"><div class="bar-row"><div><span>${t("bar_commitments_evidence")}</span><strong>${verifiedPct}%</strong></div><div class="bar-track"><span style="width:${verifiedPct}%"></span></div></div><div class="bar-row"><div><span>${t("bar_questions_answered")}</span><strong>${pctText(rep.response_rate)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.response_rate)}%"></span></div></div><div class="bar-row"><div><span>${t("bar_community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.community_pulse)}%"></span></div></div></div><div class="public-record-list"><div><span>${t("list_last_update")}</span><strong>${esc(rep.last_update)}</strong></div><div><span>${t("list_questions_received")}</span><strong>${rep.questions_received}</strong></div><div><span>${t("list_updates_issued")}</span><strong>${rep.updates_issued}</strong></div><div><span>${t("list_office_replies")}</span><strong>${rep.responses_on_file || 0}</strong></div></div><p class="rep-bio">${esc(rep.bio)}</p></article><aside class="panel right-reply"><span class="eyebrow">${t("right_of_reply_eyebrow")}</span><h2>${t("right_of_reply_title")}</h2><p class="panel-intro">${t("right_of_reply_body")}</p>${userRole() === "office" ? `<label class="form-label" for="rep-response-type">${t("response_type_label")}</label><select id="rep-response-type" class="feedback-select"><option>${t("response_type_correct")}</option><option>${t("response_type_context")}</option><option>${t("response_type_source")}</option></select><label class="form-label" for="rep-response">${t("office_response_label")}</label><textarea id="rep-response" class="feedback-textarea" placeholder="${t("office_response_placeholder")}"></textarea><button class="primary-btn" id="submit-rep-response">${t("submit_response")}</button><p class="disclaimer">${t("response_disclaimer")}</p>` : `<p class="disclaimer office-only-note">${t("office_only_reply")}</p>`}<div class="reply-list"><span class="eyebrow">${t("questions_received_eyebrow")} ${help("questions")}</span>${(rep.questions || []).length ? (rep.questions || []).map((item) => `<div class="reply-item question-item"><strong>${esc(item.user_label)} · ${esc(formatActivityDate(item.created_at))}</strong><p>${esc(item.question || item.draft)}</p><small>${esc(item.record_title)}</small>${userRole() === "office" ? `<button class="text-btn" data-reply-to="${esc((item.question || item.draft).slice(0, 120))}">${t("reply_to_this")}</button>` : ""}</div>`).join("") : `<div class="empty-reply">${t("no_questions_received")}</div>`}</div><div class="reply-list"><span class="eyebrow">${t("responses_on_file_eyebrow")}</span>${responses.length ? responses.map((item) => `<div class="reply-item"><strong>${esc(item.type || t("office_response_fallback"))}</strong><p>${esc(item.message)}</p><small>${esc(item.user_label || t("office_response_fallback"))} · ${esc(item.status)} · ${esc(formatActivityDate(item.created_at))}</small></div>`).join("") : `<div class="empty-reply">${t("no_response_yet")}</div>`}</div></aside></section>
     <article class="panel" style="margin-top:18px"><span class="eyebrow">${t("track_record_eyebrow")}</span><h2>${t("track_record_title")}</h2><ul class="fact-list">${representativeTrackRecord(rep).map((entry) => `<li>${esc(entry)}</li>`).join("")}</ul></article>
   `;
 }
@@ -2470,7 +2505,7 @@ function renderFeedback(record) {
         ${(() => { const office = responsibleOffice(record); return `<div class="addressed-box"><span class="eyebrow">${t("addressed_to_eyebrow")}</span><strong>${esc(office.name)}</strong>${office.office && office.office !== office.name ? `<small>${esc(office.office)}</small>` : ""}${office.id ? `<button class="text-btn" data-rep-detail="${esc(office.id)}">${t("open_public_profile_arrow")}</button>` : ""}${state.askUnknown?.recordId === record.id ? `<p class="asking-about">${t("asking_about", esc(state.askUnknown.question))}</p>` : ""}</div>`; })()}
         <label class="form-label" for="feedback-text">${t("your_words_label")}</label><textarea id="feedback-text" class="feedback-textarea" placeholder="${t("your_words_placeholder")}">${esc(draft?.original || (state.askUnknown?.recordId === record.id ? state.askUnknown.question : ""))}</textarea>
         <div class="button-row"><button class="primary-btn" id="make-draft">${t("create_reviewable_draft")}</button><button class="secondary-btn" id="clear-draft">${t("clear")}</button></div>
-        ${draft ? `<div class="draft-box"><strong>${t("structured_draft_label")}</strong><small>${draft.engine === "ollama" ? t("prepared_by_ollama") : t("prepared_by_fallback")}</small>${esc(draft.draft)}</div><ul class="check-list">${draft.checks.map((check) => `<li>${esc(check)}</li>`).join("")}</ul><div class="button-row"><button class="primary-btn" id="save-draft">${t("save_draft")}</button></div>` : ""}
+        ${draft ? `<div class="draft-box"><strong>${t("structured_draft_label")}</strong><small>${draft.engine === "ollama" ? t("prepared_by_ollama") : t("prepared_by_fallback")}</small>${esc(draft.draft)}</div><ul class="check-list">${draft.checks.map((check) => `<li>${esc(check)}</li>`).join("")}</ul><label class="anon-toggle"><input type="checkbox" id="question-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="save-draft">${t("send_to_office", esc(responsibleOffice(record).name))}</button></div><p class="disclaimer">${t("send_note")}</p>` : ""}
       </article>
       <aside class="panel"><span class="eyebrow">${t("community_view_eyebrow")}</span><h2>${t("community_view_title")}</h2><p class="panel-intro">${t("community_view_body")}</p><div class="columns-3"><div class="mini-column"><h4>${t("shared_facts")}</h4><p>${esc(record.facts[0])}</p></div><div class="mini-column"><h4>${t("open_questions")}</h4><p>${esc(record.unknowns[0])}</p></div><div class="mini-column"><h4>${t("different_priorities_col")}</h4><p>${esc(record.perspectives.map((item) => item.label).join(" · "))}</p></div></div><p class="disclaimer">${t("community_view_disclaimer")}</p></aside>
     </div>
@@ -2673,8 +2708,9 @@ async function submitExplain() {
 }
 
 function renderFeedbackList() {
-  const myFeedback = state.feedback.filter((item) => state.user ? item.user_id === state.user.id : !item.user_id && item.session === state.sessionId);
-  app.innerHTML = `<section class="page-head"><div><span class="eyebrow">${t("my_feedback_eyebrow")}</span><h1>${t("my_feedback_title")}</h1><p>${t("my_feedback_body")}</p></div><div class="head-note"><strong>${t("saved_drafts_count", myFeedback.length)}</strong><span>${t("nothing_sent_note")}</span></div></section><div class="feedback-list">${myFeedback.length ? myFeedback.map((item) => `<article class="saved-feedback"><div class="saved-feedback-top"><h3>${esc(item.record_title)}</h3><small>${esc(item.status)}</small></div><p>${esc(item.draft)}</p><div class="record-meta" style="margin-top:12px"><span class="tag">${esc(item.perspective)}</span><span class="tag">${esc(item.language)}</span>${item.office ? `<span class="tag">→ ${esc(item.office)}</span>` : ""}</div></article>`).join("") : `<div class="empty-state">${t("no_drafts_yet")}</div>`}</div>`;
+  if (state.user && !state.feedbackLoadedFor) { state.feedbackLoadedFor = state.user.id; fetch(`/api/feedback?token=${encodeURIComponent(authToken())}`).then((r) => r.ok ? r.json() : { feedback: [] }).then((data) => { state.feedback = data.feedback || []; if (state.view === "feedback") render(); }).catch(() => {}); }
+  const myFeedback = state.user ? state.feedback : [];
+  app.innerHTML = `<section class="page-head"><div><span class="eyebrow">${t("my_feedback_eyebrow")}</span><h1>${t("my_feedback_title")}</h1><p>${t("my_feedback_body")}</p></div><div class="head-note"><strong>${t("saved_drafts_count", myFeedback.length)}</strong><span>${t("nothing_sent_note")}</span></div></section><div class="feedback-list">${!state.user ? `<div class="empty-state">${t("sign_in_to_see_questions")}</div>` : myFeedback.length ? myFeedback.map((item) => `<article class="saved-feedback"><div class="saved-feedback-top"><h3>${esc(item.record_title)}</h3><small class="${item.office_replied ? "replied" : ""}">${item.office_replied ? t("office_replied") : t("awaiting_reply")}</small></div>${item.question ? `<p class="asking-about">${esc(item.question)}</p>` : ""}<p>${esc(item.draft)}</p><div class="record-meta" style="margin-top:12px">${item.office ? `<span class="tag">→ ${esc(item.office)}</span>` : ""}<span class="tag">${esc(formatActivityDate(item.created_at))}</span>${item.anonymous ? `<span class="tag">${t("sent_anonymously")}</span>` : ""}${item.office_id ? `<button class="text-btn" data-rep-detail="${esc(item.office_id)}">${t("open_public_profile_arrow")}</button>` : ""}</div></article>`).join("") : `<div class="empty-state">${t("no_drafts_yet")}</div>`}</div>`;
 }
 
 function speechSupport() {
@@ -2858,14 +2894,20 @@ function bindRecordActions(record) {
   const clearDraft = document.querySelector("#clear-draft");
   if (clearDraft) clearDraft.addEventListener("click", () => { state.draft = null; renderRecord(); });
   const saveDraft = document.querySelector("#save-draft");
-  if (saveDraft) saveDraft.addEventListener("click", async () => {
-    const response = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record_id: record.id, country: state.dashboard.country, token: authToken(), original: state.draft.original, draft: state.draft.draft, language: state.draft.language, perspective: state.draft.perspective, office: responsibleOffice(record).name, question: state.askUnknown?.recordId === record.id ? state.askUnknown.question : "" }) });
+  if (saveDraft) saveDraft.addEventListener("click", () => requireUser(async () => {
+    const office = responsibleOffice(record);
+    const response = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record_id: record.id, country: state.dashboard.country, token: authToken(), original: state.draft.original, draft: state.draft.draft, language: state.draft.language, perspective: state.draft.perspective, office: office.name, office_id: office.id, question: state.askUnknown?.recordId === record.id ? state.askUnknown.question : "", anonymous: Boolean(document.querySelector("#question-anonymous")?.checked), persona: anonymousPersona() }) });
     const saved = await response.json();
-    state.feedback.unshift({ ...saved, session: state.sessionId });
+    if (!response.ok) return showToast(saved.error || t("toast_comment_failed"));
+    state.feedback.unshift(saved);
+    state.community[record.id] = { ...(state.community[record.id] || {}), questions: [saved, ...(state.community[record.id]?.questions || [])] };
     state.draft = null;
-    showToast(t("toast_draft_saved"));
+    state.askUnknown = null;
+    state.tab = "overview";
+    showToast(t("toast_question_sent", office.name));
     renderRecord();
-  });
+    document.querySelector(".questions-list")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }));
   document.querySelectorAll("[data-vote]").forEach((button) => button.addEventListener("click", () => requireUser(async () => {
     const response = await fetch(`/api/records/${encodeURIComponent(record.id)}/vote`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), country: state.dashboard.country, vote: button.dataset.vote }) });
     const data = await response.json();
@@ -2908,6 +2950,7 @@ function bindAppActions() {
   document.querySelectorAll("#app [data-record]").forEach((button) => button.addEventListener("click", () => setRoute("record", button.dataset.record)));
   document.querySelectorAll("#app [data-rep-detail]").forEach((button) => button.addEventListener("click", () => { state.repId = button.dataset.repDetail; setRoute("representative-detail"); }));
   document.querySelectorAll("#app [data-follow-detail]").forEach((button) => button.addEventListener("click", () => toggleFollow(button.dataset.followDetail)));
+  document.querySelectorAll("[data-reply-to]").forEach((button) => button.addEventListener("click", () => { const field = document.querySelector("#rep-response"); if (field) { field.value = `${t("re_prefix")} « ${button.dataset.replyTo} » — `; field.focus(); } }));
   const submitResponse = document.querySelector("#submit-rep-response");
   if (submitResponse) submitResponse.addEventListener("click", async () => {
     const message = document.querySelector("#rep-response").value.trim();

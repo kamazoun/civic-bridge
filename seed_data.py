@@ -416,7 +416,10 @@ def seed(app: dict[str, Any]) -> None:
             for template in rng.sample(FEEDBACK_DRAFTS[lang], rng.choice([0, 0, 0, 1, 1, 2])):
                 draft = fill(template, nb=nb, d1=fmt_date(base_dt, lang))
                 author = rng.choice(residents)
-                app["FEEDBACK"].append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": author["id"], "user_label": author["display_name"], "record_id": record["id"], "record_title": record["title"], "original": draft, "draft": draft, "perspective": "Community question", "language": "Français" if lang == "fr" else "English", "country": country, "status": "Draft saved — not yet sent", "created_at": iso(base_dt + timedelta(days=rng.uniform(1, 30)))})
+                notice_office = next((n.get("responsible_office", "") for n in app["PUBLISHED_NOTICES"] if n["id"] == record["id"]), "")
+                office_level = FIXTURE_RECORD_OFFICE.get(record["id"]) or next((rep_id for rep_id, rep in reps.items() if rep["name"] == notice_office), "district-council")
+                anonymous = rng.random() < 0.35
+                app["FEEDBACK"].append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": author["id"], "user_label": (f"Un·e résident·e de {author['locality']}" if lang == "fr" else f"A resident of {author['locality']}") if anonymous else author["display_name"], "anonymous": anonymous, "record_id": record["id"], "record_title": record["title"], "original": draft, "draft": draft, "perspective": "Community question", "language": "Français" if lang == "fr" else "English", "country": country, "office": reps[office_level]["display_name"], "office_id": office_level, "question": "", "status": "Sent to office", "created_at": iso(base_dt + timedelta(days=rng.uniform(1, 30)))})
 
         # --- Office replies (right of reply), 6–12 per office
         for level, rep in reps.items():
