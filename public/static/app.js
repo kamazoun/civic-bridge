@@ -167,6 +167,10 @@ const STRINGS = {
     share_copy_desc: "Copy a reviewable source link",
     modal_share_footnote: "Share activity is saved locally for this session.",
     toast_share_recorded: (channel) => `Share to ${channel} recorded.`,
+    toast_link_copied: "Link copied.",
+    toast_share_opening: (channel) => `Opening ${channel}…`,
+    sidebar_portal_title: "Office side: Public Information Portal ↗",
+    sidebar_portal_note: "Where offices publish the notices you see here.",
     toast_share_failed: "Share could not be saved.",
     civic_update_fallback: "Civic Bridge update",
     representative_profile: "Representative profile",
@@ -249,12 +253,12 @@ const STRINGS = {
     metric_sources_checked: "Sources checked",
     metric_sources_checked_detail: "With provenance attached",
     your_area_eyebrow: "YOUR AREA",
-    area_view_eyebrow: "AREA VIEW",
+    area_view_eyebrow: "WHO IS RESPONSIBLE · LEVELS OF GOVERNMENT HERE",
     choose_area_see_map: "Choose an area to see your map",
     change_area_arrow: "Change area →",
     choose_area_arrow: "Choose area →",
-    watchlist_eyebrow: "YOUR WATCHLIST",
-    watchlist_title: "People responsible",
+    watchlist_eyebrow: "THE OFFICES",
+    watchlist_title: "Who you can address",
     view_all_arrow: "View all →",
     watchlist_empty: "Choose an area to load the representative hierarchy.",
     view_all_issues_arrow: "View all issues →",
@@ -801,6 +805,10 @@ const STRINGS = {
     share_copy_desc: "Copier un lien source vérifiable",
     modal_share_footnote: "L’activité de partage est enregistrée localement pour cette session.",
     toast_share_recorded: (channel) => `Partage vers ${channel} enregistré.`,
+    toast_link_copied: "Lien copié.",
+    toast_share_opening: (channel) => `Ouverture de ${channel}…`,
+    sidebar_portal_title: "Côté administration : portail d’information publique ↗",
+    sidebar_portal_note: "Là où les bureaux publient les avis que vous voyez ici.",
     toast_share_failed: "Le partage n’a pas pu être enregistré.",
     civic_update_fallback: "Mise à jour Civic Bridge",
     representative_profile: "Profil du représentant",
@@ -878,12 +886,12 @@ const STRINGS = {
     metric_sources_checked: "Sources vérifiées",
     metric_sources_checked_detail: "Avec provenance jointe",
     your_area_eyebrow: "VOTRE ZONE",
-    area_view_eyebrow: "VUE DE LA ZONE",
+    area_view_eyebrow: "QUI EST RESPONSABLE · LES NIVEAUX ICI",
     choose_area_see_map: "Choisissez une zone pour voir votre carte",
     change_area_arrow: "Changer de zone →",
     choose_area_arrow: "Choisir une zone →",
-    watchlist_eyebrow: "VOTRE LISTE DE SUIVI",
-    watchlist_title: "Personnes responsables",
+    watchlist_eyebrow: "LES BUREAUX",
+    watchlist_title: "À qui vous adresser",
     view_all_arrow: "Tout voir →",
     watchlist_empty: "Choisissez une zone pour charger la hiérarchie représentative.",
     view_all_issues_arrow: "Voir tous les dossiers →",
@@ -1574,7 +1582,7 @@ function applyAreaContext() {
   state.dashboard.metrics = clone(context.dashboard?.metrics || []);
   state.dashboard.languages = clone(context.languages || LANGUAGE_PROFILES[state.dashboard.country] || []);
   state.dashboard.hierarchy = clone(context.hierarchy || []);
-  state.dashboard.last_sync = context.dashboard?.last_sync || "Local fixture pack";
+  state.dashboard.last_sync = context.dashboard?.last_sync || t("home_eyebrow");
   state.newsLanguage = state.dashboard.languages[0] || "English";
   const locationLabel = `${state.dashboard.area} · ${state.dashboard.region || state.dashboard.country || "selected area"}`;
   state.records = state.records.map((record) => ({ ...record, location: locationLabel, locality: state.dashboard.area, region: state.dashboard.region }));
@@ -1778,7 +1786,6 @@ function showShareModal(target) {
   root.innerHTML = `<div class="modal-backdrop" data-close-modal><section class="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title"><div class="modal-top"><div><span class="eyebrow">${t("modal_share_eyebrow")}</span><h2 id="share-title">${t("modal_share_title")}</h2></div><button class="modal-close" data-close-modal aria-label="${t("close")}">×</button></div><p class="modal-copy">${t("modal_share_body")}</p><div class="share-preview"><span class="eyebrow">${esc(target.type || t("modal_share_eyebrow"))}</span><strong>${esc(target.title || t("civic_update_fallback"))}</strong><small>${t("share_source_backed", esc(state.dashboard.area || t("your_area")))}</small></div><div class="share-options">${[
     ["WhatsApp", t("share_whatsapp_desc")],
     ["SMS", t("share_sms_desc")],
-    ["Community group", t("share_group_desc")],
     ["Copy link", t("share_copy_desc")],
   ].map(([channel, description]) => `<button class="share-option" data-share-channel="${channel}"><span class="option-avatar">${channel === "WhatsApp" ? "◌" : channel === "SMS" ? "✉" : channel === "Copy link" ? "↗" : "≋"}</span><span><strong>${channel}</strong><small>${description}</small></span><span>→</span></button>`).join("")}</div><p class="modal-footnote">${t("modal_share_footnote")}</p></section></div>`;
   root.querySelectorAll("[data-share-channel]").forEach((button) => button.addEventListener("click", () => submitShare(button.dataset.shareChannel)));
@@ -1786,14 +1793,19 @@ function showShareModal(target) {
   root.querySelectorAll(".modal-close").forEach((button) => button.addEventListener("click", closeModal));
 }
 
+// Sharing is real: WhatsApp and SMS open the phone's own app with the text,
+// Copy link uses the clipboard. The server only counts that a share happened.
 async function submitShare(channel) {
-  if (!state.user || !state.shareTarget) return;
-  const response = await fetch("/api/share", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), channel, target_type: state.shareTarget.type, target_title: state.shareTarget.title }) });
-  const data = await response.json();
-  if (!response.ok) return showToast(data.error || t("toast_share_failed"));
+  if (!state.shareTarget) return;
+  const url = `${location.origin}${location.pathname}${state.view === "record" && state.recordId ? `#record/${encodeURIComponent(state.recordId)}` : ""}`;
+  const text = `${state.shareTarget.title} — ${url}`;
+  if (channel === "WhatsApp") window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  else if (channel === "SMS") location.href = `sms:?&body=${encodeURIComponent(text)}`;
+  else { try { await navigator.clipboard.writeText(url); } catch (error) { /* clipboard blocked */ } }
+  if (state.user) fetch("/api/share", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), channel, target_type: state.shareTarget.type, target_title: state.shareTarget.title }) }).catch(() => {});
   document.querySelector("#modal-root").innerHTML = "";
   state.shareTarget = null;
-  showToast(t("toast_share_recorded", channel));
+  showToast(channel === "Copy link" ? t("toast_link_copied") : t("toast_share_opening", channel));
 }
 
 async function loadCommunity(recordId) {
@@ -1966,7 +1978,7 @@ function initLocationLeafletMap() {
 function roleWorkspace() {
   if (!state.user) return `<section class="role-banner resident"><span class="eyebrow">${t("role_public_eyebrow")}</span><strong>${t("role_public_title")}</strong><span>${t("role_public_body")}</span></section>`;
   if (userRole() === "office") return `<section class="role-banner office"><span class="eyebrow">${t("role_office_eyebrow")}</span><strong>${t("role_office_title")}</strong><span>${t("role_office_body")}</span><button class="secondary-btn" data-route="representatives">${t("role_office_button")}</button></section>`;
-  if (userRole() === "organizer") return `<section class="role-banner organizer"><span class="eyebrow">${t("role_organizer_eyebrow")}</span><strong>${t("role_organizer_title")}</strong><span>${t("role_organizer_body")}</span><button class="secondary-btn" data-route="channels">${t("role_organizer_button")}</button></section>`;
+  if (userRole() === "organizer") return `<section class="role-banner organizer"><span class="eyebrow">${t("role_organizer_eyebrow")}</span><strong>${t("role_organizer_title")}</strong><span>${t("role_organizer_body")}</span><button class="secondary-btn" data-route="groups">${t("role_organizer_button")}</button></section>`;
   return `<section class="role-banner resident"><span class="eyebrow">${t("role_resident_eyebrow")}</span><strong>${t("role_resident_title")}</strong><span>${t("role_resident_body")}</span><button class="secondary-btn" data-route="issues">${t("role_resident_button")}</button></section>`;
 }
 
@@ -1974,41 +1986,7 @@ function qrPattern() {
   return Array.from({ length: 64 }, (_, index) => `<i class="qr-cell ${((index * 17 + 3) % 7 < 3 || index < 8 || index % 8 < 2) ? "on" : ""}"></i>`).join("");
 }
 
-function showSubscriptionConfirmation(subscription) {
-  const root = document.querySelector("#modal-root");
-  root.innerHTML = `<div class="modal-backdrop" data-close-modal><section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="subscription-title"><div class="modal-top"><div><span class="eyebrow">${t("modal_subscription_confirmed")}</span><h2 id="subscription-title">${t("modal_subscribed_title")}</h2></div><button class="modal-close" data-close-modal aria-label="${t("close")}">×</button></div><p class="modal-copy">${t("subscription_body", esc(subscription.channel), esc(subscription.area), esc(subscription.contact))}</p><div class="share-preview"><span class="eyebrow">${t("next_update_eyebrow")}</span><strong>${t("next_update_body")}</strong><small>${t("subscription_change_note")}</small></div><button class="primary-btn" data-close-modal>${t("done")}</button></section></div>`;
-  root.querySelectorAll("[data-close-modal]").forEach((element) => element.addEventListener("click", (event) => { if (event.target === element || element.tagName === "BUTTON") { root.innerHTML = ""; } }));
-}
 
-// Dialling code + national number format of the selected country, shown as the
-// SMS/WhatsApp placeholder so the example is always local.
-const PHONE_FORMATS = { Togo: "+228 90 12 34 56", "Côte d’Ivoire": "+225 07 07 12 34 56", Ghana: "+233 24 123 4567", Kenya: "+254 712 345 678", Nigeria: "+234 803 123 4567" };
-function phoneExample(country) { return PHONE_FORMATS[country] || "+233 24 123 4567"; }
-
-function wireSubscriptionForm() {
-  const form = document.querySelector("#subscription-form");
-  if (!form) return;
-  const channel = document.querySelector("#subscription-channel");
-  const contact = document.querySelector("#subscription-contact");
-  const updateContactHint = () => {
-    const isEmail = channel.value === "Email";
-    contact.type = isEmail ? "email" : "tel";
-    contact.placeholder = isEmail ? "name@example.com" : phoneExample(state.dashboard.country);
-    contact.setAttribute("aria-label", isEmail ? "Email address" : "Phone number");
-  };
-  channel.addEventListener("change", updateContactHint);
-  updateContactHint();
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const value = contact.value.trim();
-    if (!value) return showToast(t("toast_contact_required"));
-    requireUser(() => {
-      const subscription = { channel: channel.value, contact: value, area: state.dashboard.area || "your area", createdAt: new Date().toISOString() };
-      try { localStorage.setItem(`civic-bridge-subscription-${state.user.id}`, JSON.stringify(subscription)); } catch (error) { /* optional */ }
-      showSubscriptionConfirmation(subscription);
-    });
-  });
-}
 
 function renderHome() {
   const hasArea = Boolean(state.dashboard.area && state.dashboard.country);
@@ -2067,7 +2045,6 @@ function renderHome() {
         <article class="rail-widget"><span class="eyebrow">${hasProfession() ? t("recommended_eyebrow") : t("your_area_eyebrow")}</span><h3>${hasProfession() ? t("sorted_for_profile", esc(professionLabel())) : (hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_location"))}</h3><div class="rail-stat-row">${metrics.slice(0, 4).map((metric) => `<div class="rail-stat"><strong>${esc(metric.value)}</strong><span>${esc(metric.label)}</span></div>`).join("")}</div></article>
         <article class="rail-widget"><span class="eyebrow">${t("area_view_eyebrow")}</span><h3>${hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_area_see_map")}</h3>${hasArea ? `<div class="language-row">${(state.dashboard.hierarchy || []).filter((level) => level !== "All levels" && level !== "Tous les niveaux").map((level) => `<span class="language-chip">${esc(level)}</span>`).join("")}</div>` : `<p class="panel-intro" style="margin:0">${t("home_body_no_area")}</p>`}<button class="text-btn" style="margin-top:10px" data-route="locations">${hasArea ? t("change_area_arrow") : t("choose_area_arrow")}</button></article>
         <article class="rail-widget"><span class="eyebrow">${t("watchlist_eyebrow")}</span><h3>${t("watchlist_title")}</h3><div class="watch-list">${hasArea ? visibleRepresentatives.slice(0, 3).map((rep) => `<button class="watch-row" data-route="representatives"><span class="avatar-mini">${esc(rep.level.slice(0, 1))}</span><span><strong>${esc(representativeName(rep))}</strong><small>${esc(representativeLocality(rep))}</small></span><span class="watch-arrow">↗</span></button>`).join("") : `<div class="empty-state">${t("watchlist_empty")}</div>`}</div><button class="text-btn" style="margin-top:8px" data-route="representatives">${t("view_all_arrow")}</button></article>
-        <article class="rail-widget"><span class="eyebrow">${t("language_access_eyebrow")}</span><h3>${t("language_access_title")}</h3><div class="language-row">${(state.dashboard.languages || []).map((language, index) => `<span class="language-chip ${index === 0 ? "selected" : ""}">${esc(language)}</span>`).join("")}</div><button class="text-btn" style="margin-top:8px" data-route="channels">${t("explore_channels_arrow")}</button></article>
       </aside>
     </section>
   `;
@@ -2176,9 +2153,6 @@ function wireRepresentativeControls() {
   document.querySelectorAll("[data-follow-rep]").forEach((button) => button.addEventListener("click", () => toggleFollow(button.dataset.followRep)));
 }
 
-function wireNewsLanguage() {
-  document.querySelector("#news-language")?.addEventListener("change", (event) => { state.newsLanguage = event.target.value; renderNews(); bindAppActions(); });
-}
 
 function renderIssues() {
   if (!state.dashboard.area || !state.dashboard.country) return renderAreaRequired();
@@ -2344,37 +2318,12 @@ function renderRepresentativeDetail() {
   `;
 }
 
-function renderNews() {
-  if (!state.dashboard.area || !state.dashboard.country) return renderAreaRequired();
-  app.innerHTML = `
-    <section class="page-head compact-head"><div><span class="eyebrow">${t("news_eyebrow")}</span><h1>${t("news_title")}</h1><p>${t("news_body")}</p></div><div class="head-note"><strong>${t("updates_count", state.news.length)}</strong><span>${t("last_checked", esc(state.dashboard.last_sync || "today"))}</span></div></section>
-    <section class="news-toolbar"><div><span class="eyebrow">${t("language_preview_eyebrow")}</span><strong>${t("read_in_your_language")}</strong></div><select id="news-language" class="feedback-select">${(state.dashboard.languages || ["English"]).map((language) => `<option ${state.newsLanguage === language ? "selected" : ""}>${esc(language)}</option>`).join("")}</select><button class="secondary-btn" data-action="subscribe">${t("subscribe_area_alerts")}</button></section>
-    <section class="news-list">${state.news.map((item) => { const hasRecord = state.records.some((record) => record.id === item.id); return `<article class="news-card ${hasRecord ? "clickable" : ""}" ${hasRecord ? `data-record="${esc(item.id)}"` : ""}><div class="news-card-top"><span class="news-type">${esc(item.type)}</span><span class="news-date">${esc(item.date)}</span></div><h2>${esc(item.headline)}</h2><p>${esc(item.summary)}</p><div class="news-bottom"><div><span class="tag ${item.status === "Needs update" ? "open" : "status"}">${esc(statusLabel(item.status))}</span><span class="tag">${esc(item.locality)}</span></div><div class="news-actions"><span class="news-source">${esc(item.source)}</span><button class="secondary-btn compact-action" data-action="share-source" data-share-title="${esc(item.headline)}" data-share-type="${esc(item.type)}">${t("share_source")}</button></div></div><div class="translation-strip"><span>${t("available_in", (item.languages || []).join(" · "))}</span><span class="translation-note">${state.newsLanguage === (item.languages || [])[0] ? t("original_summary") : t("translation_preview", esc(state.newsLanguage))}</span></div></article>`; }).join("")}</section>
-    <article class="panel trust-panel"><span class="eyebrow">${t("trust_check_eyebrow")}</span><h2>${t("trust_check_title")}</h2><p class="panel-intro">${t("trust_check_body")}</p></article>
-  `;
-  wireNewsLanguage();
-}
 
-function renderChannelsHub() {
-  const channelsArea = state.dashboard.area || "your selected area";
-  app.innerHTML = `
-    <section class="page-head compact-head"><div><span class="eyebrow">${t("access_channels_eyebrow")}</span><h1>${t("access_channels_title")}</h1><p>${t("access_channels_body")}</p></div><div class="head-note"><strong>${t("low_bandwidth_ready")}</strong><span>${t("audio_sms_whatsapp_web")}</span></div></section>
-    <section class="channel-hub-grid"><article class="channel-hub-card web"><span class="channel-number">01</span><div class="channel-icon">↗</div><h2>${t("channel_web_title")}</h2><p>${t("channel_web_body")}</p><span class="channel-detail">${t("channel_web_detail")}</span></article><article class="channel-hub-card audio"><span class="channel-number">02</span><div class="channel-icon">◉</div><h2>${t("channel_audio_title")}</h2><p>${t("channel_audio_body")}</p><span class="channel-detail">${t("channel_audio_detail")}</span></article><article class="channel-hub-card text"><span class="channel-number">03</span><div class="channel-icon">≋</div><h2>${t("channel_text_title")}</h2><p>${t("channel_text_body")}</p><span class="channel-detail">${t("channel_text_detail")}</span></article></section>
-    <section class="section-grid channel-lower"><article class="panel"><span class="eyebrow">${t("subscribe_locality_eyebrow")}</span><h2>${t("subscribe_locality_title", esc(channelsArea))}</h2><p class="panel-intro">${t("subscribe_locality_body")}</p><div class="subscription-row"><select class="feedback-select"><option>WhatsApp</option><option>SMS</option><option>Voice call</option></select><select class="feedback-select"><option>${esc(channelsArea)}</option><option>Market Ward</option><option>Health Post area</option></select><button class="primary-btn" data-action="subscribe">${t("subscribe")}</button></div></article><article class="panel"><span class="eyebrow">${t("language_access_eyebrow")}</span><h2>${t("language_access_title2")}</h2><div class="language-stack">${(state.dashboard.languages || []).map((language, index) => `<div><span>${index + 1}</span><strong>${esc(language)}</strong><small>${index === 0 ? t("original_source_language") : t("translation_pathway")}</small></div>`).join("")}</div></article></section>
-  `;
-  const subscriptionRow = document.querySelector(".subscription-row");
-  if (subscriptionRow) {
-    subscriptionRow.innerHTML = `<form id="subscription-form" class="subscription-form"><div><label class="form-label" for="subscription-channel">${t("channel_field_label")}</label><select id="subscription-channel" class="feedback-select"><option>WhatsApp</option><option>SMS</option><option>Email</option><option>${t("voice_call")}</option></select></div><div><label class="form-label" for="subscription-contact">${t("contact_field_label")}</label><input id="subscription-contact" class="feedback-select" autocomplete="off" /></div><div><label class="form-label" for="subscription-area">${t("area_field_label")}</label><input id="subscription-area" class="feedback-select" value="${esc(channelsArea)}" readonly /></div><button class="primary-btn" type="submit">${t("subscribe")}</button></form>`;
-  }
-  const lower = document.querySelector(".channel-lower");
-  if (lower) lower.insertAdjacentHTML("afterend", `<section class="join-grid"><article class="join-card"><div><span class="eyebrow">${t("whatsapp_community_eyebrow")}</span><h2>${t("whatsapp_community_title")}</h2><p>${t("whatsapp_community_body")}</p></div><div class="qr-placeholder" aria-label="QR code to join WhatsApp community">${qrPattern()}</div><button class="secondary-btn" data-action="join-whatsapp">${t("open_whatsapp_invite")}</button></article><article class="join-card"><div><span class="eyebrow">${t("discord_community_eyebrow")}</span><h2>${t("discord_community_title")}</h2><p>${t("discord_community_body")}</p></div><div class="qr-placeholder blue" aria-label="QR code to join Discord community">${qrPattern()}</div><button class="secondary-btn" data-action="join-discord">${t("open_discord_invite")}</button></article></section>`);
-  wireSubscriptionForm();
-}
 
 function renderRecord() {
   const record = getRecord();
   if (!record) return setRoute("home");
-  const tabs = ["overview", "feedback", "representative", "channels"];
+  const tabs = ["overview", "feedback", "representative"];
   app.innerHTML = `
     <button class="breadcrumb" data-route="home">${t("back_to_records")}</button>
     <section class="record-header">
@@ -2382,8 +2331,7 @@ function renderRecord() {
       <div class="record-status"><div class="status-line"><span class="status-check">✓</span>${esc(record.status)}</div><small>${esc(record.source_label)}<br />${t("last_checked", esc(record.source_date))} · ${esc(record.status_detail)}</small><button class="secondary-btn share-source" data-action="share-source" data-share-title="${esc(record.title)}" data-share-type="${esc(record.category)}">${t("share_source")}</button></div>
     </section>
     <nav class="tabs" aria-label="Record sections">${tabs.map((tab) => `<button class="tab ${state.tab === tab ? "active" : ""}" data-tab="${tab}">${tab === "overview" ? t("tab_evidence") : tab === "feedback" ? t("tab_feedback") : tab === "representative" ? t("tab_representative") : t("tab_channels")}</button>`).join("")}</nav>
-    <p class="tab-hint">${t("record_tabs_hint")}</p>
-    <section class="detail-content">${state.tab === "overview" ? renderOverview(record) : state.tab === "feedback" ? renderFeedback(record) : state.tab === "representative" ? renderRepresentative(record) : renderChannels(record)}</section>
+        <section class="detail-content">${state.tab === "overview" ? renderOverview(record) : state.tab === "feedback" ? renderFeedback(record) : renderRepresentative(record)}</section>
   `;
   cleanInterfaceCopy();
   wireRecordNavigation(record);
@@ -2445,7 +2393,7 @@ function renderFeedback(record) {
   return `
     <div class="feedback-layout">
       <article class="panel"><span class="eyebrow">${t("your_words_first_eyebrow")}</span><h2>${t("your_words_first_title")}</h2><p class="panel-intro">${t("your_words_first_body")}</p>
-        <div class="voice-box"><div class="voice-box-top"><div><strong>${t("audio_access")}</strong><small>${t("audio_access_detail")}</small></div><button class="voice-btn" id="voice-demo">${t("use_sample")}</button></div><div class="avatar-row"><div class="audio-avatar" id="audio-avatar" aria-hidden="true"><span class="avatar-blob b1"></span><span class="avatar-blob b2"></span><span class="avatar-blob b3"></span><span class="avatar-blob b4"></span></div><div class="avatar-copy"><button class="secondary-btn compact-action" id="avatar-talk">${t("avatar_talk_button")}</button><small id="avatar-status"></small></div></div><div class="waveform" aria-hidden="true">${Array.from({ length: 42 }, (_, i) => `<i style="height:${10 + ((i * 17) % 28)}px"></i>`).join("")}</div><p class="voice-caption">${t("voice_caption")}</p></div>
+        <div class="voice-box"><div class="voice-box-top"><div><strong>${t("audio_access")}</strong><small>${t("audio_access_detail")}</small></div></div><div class="avatar-row"><div class="audio-avatar" id="audio-avatar" aria-hidden="true"><span class="avatar-blob b1"></span><span class="avatar-blob b2"></span><span class="avatar-blob b3"></span><span class="avatar-blob b4"></span></div><div class="avatar-copy"><button class="secondary-btn compact-action" id="avatar-talk">${t("avatar_talk_button")}</button><small id="avatar-status"></small></div></div><div class="waveform" aria-hidden="true">${Array.from({ length: 42 }, (_, i) => `<i style="height:${10 + ((i * 17) % 28)}px"></i>`).join("")}</div><p class="voice-caption">${t("voice_caption")}</p></div>
         <label class="form-label" for="perspective">${t("perspective_label")}</label><select id="perspective" class="feedback-select"><option>${t("community_question")}</option>${record.perspectives.map((item) => `<option>${esc(item.label)}</option>`).join("")}</select>
         <label class="form-label" for="language">${t("language_of_note_label")}</label><select id="language" class="feedback-select">${(state.dashboard.languages || ["English"]).map((language) => `<option>${esc(language)}</option>`).join("")}</select>
         ${(() => { const office = responsibleOffice(record); return `<div class="addressed-box"><span class="eyebrow">${t("addressed_to_eyebrow")}</span><strong>${esc(office.name)}</strong>${office.office && office.office !== office.name ? `<small>${esc(office.office)}</small>` : ""}${office.id ? `<button class="text-btn" data-rep-detail="${esc(office.id)}">${t("open_public_profile_arrow")}</button>` : ""}${state.askUnknown?.recordId === record.id ? `<p class="asking-about">${t("asking_about", esc(state.askUnknown.question))}</p>` : ""}</div>`; })()}
@@ -2462,9 +2410,6 @@ function renderRepresentative(record) {
   return `<div class="section-grid"><article class="panel"><span class="eyebrow">${t("timeline_eyebrow")}</span><h2>${t("timeline_title")}</h2><p class="panel-intro">${t("timeline_body")}</p><div class="timeline">${record.timeline.map((item) => `<div class="timeline-item ${item.state}"><span class="timeline-dot"></span><span class="timeline-date">${esc(item.date)}</span><div class="timeline-label">${esc(item.label)}</div><p class="timeline-detail">${esc(item.detail)}</p></div>`).join("")}</div></article><aside class="panel"><span class="eyebrow">${t("accountability_check_eyebrow")}</span><div class="promise-card"><small>${t("current_status")}</small><strong>${esc(record.status_detail)}</strong><p>${t("accountability_note")}</p></div><div class="list-block"><h3>${t("resident_can_request")}</h3><ul class="fact-list unknown"><li>${t("request_dated_update")}</li><li>${t("request_responsible_office")}</li><li>${t("request_evidence")}</li></ul></div></aside></div>`;
 }
 
-function renderChannels(record) {
-  return `<span class="eyebrow">${t("one_source_three_ways")}</span><h2 style="font-size:26px;letter-spacing:-.04em;color:var(--pine-2);margin:9px 0 8px">${t("meet_people_title")}</h2><p class="panel-intro" style="max-width:650px">${t("meet_people_body")}</p><div class="channel-grid"><article class="channel-card"><div class="channel-icon">↗</div><h3>${t("channel_web_short")}</h3><p>${esc(record.channels.web)}</p></article><article class="channel-card"><div class="channel-icon">◉</div><h3>${t("channel_audio_short")}</h3><p>${esc(record.channels.voice)}</p></article><article class="channel-card"><div class="channel-icon">≋</div><h3>${t("channel_text_short")}</h3><p>${esc(record.channels.text)}</p></article></div><div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("text_only_preview")}</span><div class="text-thread"><div class="bubble in">${t("bubble_question_plan")}</div><div class="bubble out">${esc(t("bubble_source_says", record.plain_language, record.source_label))}</div><div class="bubble in">${t("bubble_question_unanswered")}</div><div class="bubble out">${esc(record.unknowns[0])}</div></div></article><aside class="panel"><span class="eyebrow">${t("design_promise_eyebrow")}</span><h2>${t("design_promise_title")}</h2><p class="panel-intro">${t("design_promise_body")}</p></aside></div>`;
-}
 
 const AGE_RANGES = [
   { id: "under18", key: "age_under18" },
@@ -2821,13 +2766,6 @@ function bindRecordActions(record) {
   const showOriginal = document.querySelector("#show-original-language");
   if (showOriginal) showOriginal.addEventListener("click", () => { state.translation = null; renderRecord(); });
   document.querySelectorAll("[data-tab]").forEach((button) => button.addEventListener("click", () => { state.tab = button.dataset.tab; renderRecord(); }));
-  const voiceDemo = document.querySelector("#voice-demo");
-  if (voiceDemo) voiceDemo.addEventListener("click", async () => {
-    const response = await fetch("/api/voice/transcribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preset: record.id === "water-access" ? "water" : "road" }) });
-    const data = await response.json();
-    document.querySelector("#feedback-text").value = data.transcript;
-    showToast(t("toast_transcript_added"));
-  });
   const makeDraft = document.querySelector("#make-draft");
   if (makeDraft) makeDraft.addEventListener("click", async () => {
     const text = document.querySelector("#feedback-text").value;
@@ -2915,15 +2853,10 @@ function bindAppActions() {
   });
   document.querySelectorAll("#app [data-action]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
-    if (button.dataset.action === "map-note") showToast(t("toast_map_note"));
-    if (button.dataset.action === "issue-note") showToast(t("toast_source_note"));
-    if (button.dataset.action === "subscribe") showToast(t("toast_subscription_saved"));
-    if (button.dataset.action === "join-whatsapp") showToast(t("toast_whatsapp_ready"));
-    if (button.dataset.action === "join-discord") showToast(t("toast_discord_ready"));
     if (button.dataset.action === "share-source" || button.dataset.action === "share-representative") {
       const targetType = button.dataset.action === "share-representative" ? t("representative_profile") : (button.dataset.shareType || t("civic_source_fallback"));
       const targetTitle = button.dataset.shareTitle || getRecord()?.title || t("civic_update_fallback");
-      requireUser(() => showShareModal({ type: targetType, title: targetTitle }));
+      showShareModal({ type: targetType, title: targetTitle });
     }
     if (button.dataset.action === "geolocate") requestBrowserLocation();
     if (button.dataset.action === "set-area") { state.dashboard.area = state.locationLocality || state.locationRegion || state.locationCountry; state.dashboard.region = state.locationRegion || state.locationCountry; state.dashboard.country = state.locationCountry; applyAreaContext(); persistLocation(); setRoute("home"); showToast(t("toast_now_watching", state.dashboard.area)); }
@@ -2936,10 +2869,8 @@ function render() {
   else if (state.view === "representatives") renderRepresentatives();
   else if (state.view === "locations") renderLocations();
   else if (state.view === "representative-detail") renderRepresentativeDetail();
-  else if (state.view === "news") renderNews();
   else if (state.view === "groups") renderGroups();
   else if (state.view === "group") renderGroupDetail();
-  else if (state.view === "channels") renderChannelsHub();
   else if (state.view === "explain") renderExplain();
   else if (state.view === "settings") renderSettings();
   else if (state.view === "feedback") renderFeedbackList();
@@ -2952,9 +2883,7 @@ function render() {
   if (state.view === "explain") wireExplainForm();
   if (state.view === "issues") wireIssueFilters();
   if (state.view === "representatives") wireRepresentativeControls();
-  if (state.view === "news") wireNewsLanguage();
   if (state.view === "settings") wireSettingsForm();
-  if (state.view === "channels") wireSubscriptionForm();
   renderSidebar();
   renderAiStatusBanner();
   updateAccountButton();
@@ -3043,6 +2972,8 @@ async function boot() {
   }
   pollPublisherNotices();
   window.setInterval(pollPublisherNotices, 1000);
+  const deepLink = location.hash.match(/^#record\/(.+)$/);
+  if (deepLink && state.dashboard.area && state.records.some((record) => record.id === decodeURIComponent(deepLink[1]))) setRoute("record", decodeURIComponent(deepLink[1]));
   if (shouldAutoDetect) {
     autoDetectLocation().then((detected) => {
       if (!detected || !detected.locality || state.dashboard.area) return;

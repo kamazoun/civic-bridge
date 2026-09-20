@@ -465,12 +465,12 @@ def make_country_context(country: str, spec: dict[str, Any]) -> dict[str, Any]:
     metrics = [
         {"label": "Dossiers ouverts", "value": str(len(issues)), "detail": "Dossiers illustratifs uniquement", "tone": "ochre"},
         {"label": "Niveaux de représentation", "value": str(len(representatives)), "detail": "Hiérarchie propre au pays", "tone": "blue"},
-        {"label": "Sources connectées", "value": "0", "detail": "Ajouter un vrai corpus de sources", "tone": "green"},
+        {"label": "Avis publiés", "value": "0", "detail": "Par les bureaux de votre pays", "tone": "green"},
         {"label": "Langues", "value": str(len(spec["languages"])), "detail": "Parcours linguistiques proposés", "tone": "violet"},
     ] if is_french else [
         {"label": "Open issues", "value": str(len(issues)), "detail": "Illustrative records only", "tone": "ochre"},
         {"label": "Representative levels", "value": str(len(representatives)), "detail": "Country-specific hierarchy", "tone": "blue"},
-        {"label": "Sources connected", "value": "0", "detail": "Add a real source pack", "tone": "green"},
+        {"label": "Published notices", "value": "0", "detail": "By the offices in your country", "tone": "green"},
         {"label": "Languages", "value": str(len(spec["languages"])), "detail": "Language pathways shown", "tone": "violet"},
     ]
     return {
@@ -484,7 +484,7 @@ def make_country_context(country: str, spec: dict[str, Any]) -> dict[str, Any]:
         "issues": issues,
         "news": news,
         "representatives": representatives,
-        "dashboard": {"metrics": metrics, "languages": list(spec["languages"]), "last_sync": "Corpus local illustratif" if is_french else "Local fixture pack"},
+        "dashboard": {"metrics": metrics, "languages": list(spec["languages"]), "last_sync": "Ce qui se passe" if is_french else "What is happening"},
     }
 
 
