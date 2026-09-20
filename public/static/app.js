@@ -16,6 +16,7 @@ const state = {
   draft: null,
   repLevel: "All levels",
   issueFilter: "All issues",
+  recordsShown: 12,
   newsLanguage: "English",
   locationCountry: "",
   locationRegion: "",
@@ -60,6 +61,46 @@ function t(key, ...args) {
   if (value === undefined) return key;
   return typeof value === "function" ? value(...args) : value;
 }
+
+// Small "?" that explains a term on hover / focus. Texts live in HELP (EN/FR).
+function help(key) {
+  const text = (HELP[uiLang()] || HELP.en)[key];
+  return text ? `<span class="help" tabindex="0" role="note" aria-label="${esc(text)}"><i>?</i><span class="help-box">${esc(text)}</span></span>` : "";
+}
+const HELP = {
+  en: {
+    published_notice: "A notice an office published on the Public Information Portal. It is exactly what the office wrote — not checked by anyone else — and the office that published it is named on the record.",
+    reference_record: "One of five hand-written example records per country (water, road, clinic, school, power), included so the app can be explored before any office has published. They are labelled illustrative.",
+    for_you: "The three records most relevant to your profile, if you set one in Settings. Ranking is a fixed, published points table; each record explains its points. Order changes, never what you can see.",
+    everything: "Every record for your area, newest first: notices published by offices plus the reference records.",
+    offices: "The levels of government for your country, from your ward or commune up to the national level. Each office has a public page: its notices, its replies, and how often it answers.",
+    records_on_file: "Notices and records attributed to this office: what it has published, plus the reference records in its remit.",
+    sourced: "Records backed by an actual published document, as opposed to the illustrative reference records.",
+    response_rate: "Office replies divided by questions residents asked on its records (comments, perspectives, saved drafts). Computed live; nothing is entered by hand.",
+    community_pulse: "Share of votes on this office's records that said “helpful” rather than “needs clarity”.",
+    unknowns: "Sentences in the source that leave something open — a date, a place, an amount. Each one is a button: it becomes a question addressed to the office responsible.",
+    not_verified: "The record shows what the office published, word for word. Civic Bridge does not check it against other sources — it makes it readable and questionable.",
+    understood: "The app's reading of what you typed, turned into topics from a fixed list. It is a guess: remove or add topics; your edit always wins. Nothing sensitive is kept.",
+    groups: "A group is everyone in your country whose profile lists the same topic. You see a count and a conversation, never a member list.",
+    anonymous: "Posts as “A resident of <your area> (<your first topic>)”. Your account is never attached to the post.",
+  },
+  fr: {
+    published_notice: "Un avis qu’un bureau a publié sur le portail d’information publique. C’est exactement ce que le bureau a écrit — vérifié par personne d’autre — et le bureau émetteur est nommé sur la fiche.",
+    reference_record: "L’une des cinq fiches d’exemple rédigées à la main par pays (eau, route, centre de santé, école, électricité), présentes pour explorer l’application avant toute publication. Elles sont marquées « illustratives ».",
+    for_you: "Les trois fiches les plus pertinentes pour votre profil, si vous en avez défini un dans Paramètres. Le classement est une table de points fixe et publiée ; chaque fiche explique ses points. L’ordre change, jamais ce que vous pouvez voir.",
+    everything: "Toutes les fiches de votre zone, du plus récent au plus ancien : les avis publiés par les bureaux plus les fiches de référence.",
+    offices: "Les niveaux de gouvernement de votre pays, de votre commune ou quartier jusqu’au niveau national. Chaque bureau a une page publique : ses avis, ses réponses, et sa fréquence de réponse.",
+    records_on_file: "Avis et fiches attribués à ce bureau : ce qu’il a publié, plus les fiches de référence de son ressort.",
+    sourced: "Fiches appuyées par un document réellement publié, par opposition aux fiches de référence illustratives.",
+    response_rate: "Réponses du bureau divisées par les questions posées par les résidents sur ses fiches (commentaires, points de vue, brouillons). Calculé en direct ; rien n’est saisi à la main.",
+    community_pulse: "Part des votes sur les fiches de ce bureau qui ont dit « utile » plutôt que « manque de clarté ».",
+    unknowns: "Les phrases de la source qui laissent quelque chose en suspens — une date, un lieu, un montant. Chacune est un bouton : elle devient une question adressée au bureau responsable.",
+    not_verified: "La fiche montre ce que le bureau a publié, mot pour mot. Civic Bridge ne le vérifie pas auprès d’autres sources — il le rend lisible et interrogeable.",
+    understood: "La lecture que fait l’application de ce que vous avez tapé, traduite en thèmes d’une liste fixe. C’est une hypothèse : retirez ou ajoutez des thèmes ; votre correction l’emporte toujours. Rien de sensible n’est conservé.",
+    groups: "Un groupe, c’est toutes les personnes de votre pays dont le profil mentionne le même thème. Vous voyez un nombre et une conversation, jamais une liste de membres.",
+    anonymous: "Publie en tant que « Un·e résident·e de <votre zone> (<votre premier thème>) ». Votre compte n’est jamais attaché au message.",
+  },
+};
 
 function statusLabel(status) {
   const map = { "Open question": "status_open_question", "Needs update": "status_needs_update", "Published locally": "status_published_locally", "New public update": "status_new_public_update" };
@@ -285,6 +326,8 @@ const STRINGS = {
     issues_near: (n, area) => `${n} issues near ${area}`,
     source_labelled_records: "Source-labelled records for this area",
     filter_all_issues: "Everything",
+    latest_eyebrow: "LATEST",
+    show_more_records: (n, left) => `Show ${n} more (${left} remaining)`,
     filter_notices: "Published notices",
     filter_reference: "Reference records",
     status_open_question: "Open question",
@@ -919,6 +962,8 @@ const STRINGS = {
     issues_near: (n, area) => `${n} dossiers près de ${area}`,
     source_labelled_records: "Fiches sourcées pour cette zone",
     filter_all_issues: "Tout",
+    latest_eyebrow: "À LA UNE",
+    show_more_records: (n, left) => `Afficher ${n} de plus (${left} restantes)`,
     filter_notices: "Avis publiés",
     filter_reference: "Fiches de référence",
     status_open_question: "Question ouverte",
@@ -1841,7 +1886,7 @@ async function loadCommunity(recordId) {
 function renderCommunityPanel(record) {
   const community = state.community[record.id] || { comments: [], votes: { helpful: 0, "needs-clarity": 0 }, selected_vote: [] };
   const selected = community.selected_vote || [];
-  return `<section class="panel community-panel"><div class="panel-heading"><div><span class="eyebrow">${t("community_pulse_eyebrow")}</span><h2>${t("community_pulse_title")}</h2></div><span class="live-pill"><i></i> ${t("community_signal")}</span></div><p class="panel-intro">${t("community_pulse_intro")}</p><div class="vote-row"><button class="vote-btn ${selected.includes("helpful") ? "selected" : ""}" data-vote="helpful"><span class="vote-icon">✓</span><span class="vote-text"><strong>${community.votes?.helpful || 0}</strong><small>${t("vote_helpful")}</small></span></button><button class="vote-btn needs-clarity ${selected.includes("needs-clarity") ? "selected" : ""}" data-vote="needs-clarity"><span class="vote-icon">!</span><span class="vote-text"><strong>${community.votes?.["needs-clarity"] || 0}</strong><small>${t("vote_needs_clarity")}</small></span></button></div><div class="comment-form"><label class="form-label" for="record-comment">${t("add_public_comment")}</label><textarea id="record-comment" class="feedback-textarea" placeholder="${t("comment_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="comment-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-record-comment">${t("add_comment")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div><div class="comment-list"><span class="eyebrow">${t("community_comments_eyebrow")}</span>${community.comments?.length ? community.comments.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<p class="empty-comments">${t("community_comments_empty")}</p>`}</div></section>`;
+  return `<section class="panel community-panel"><div class="panel-heading"><div><span class="eyebrow">${t("community_pulse_eyebrow")}</span><h2>${t("community_pulse_title")}</h2></div><span class="live-pill"><i></i> ${t("community_signal")}</span></div><p class="panel-intro">${t("community_pulse_intro")}</p><div class="vote-row"><button class="vote-btn ${selected.includes("helpful") ? "selected" : ""}" data-vote="helpful"><span class="vote-icon">✓</span><span class="vote-text"><strong>${community.votes?.helpful || 0}</strong><small>${t("vote_helpful")}</small></span></button><button class="vote-btn needs-clarity ${selected.includes("needs-clarity") ? "selected" : ""}" data-vote="needs-clarity"><span class="vote-icon">!</span><span class="vote-text"><strong>${community.votes?.["needs-clarity"] || 0}</strong><small>${t("vote_needs_clarity")}</small></span></button></div><div class="comment-form"><label class="form-label" for="record-comment">${t("add_public_comment")}</label><textarea id="record-comment" class="feedback-textarea" placeholder="${t("comment_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="comment-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="submit-record-comment">${t("add_comment")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div><div class="comment-list"><span class="eyebrow">${t("community_comments_eyebrow")}</span>${community.comments?.length ? community.comments.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<p class="empty-comments">${t("community_comments_empty")}</p>`}</div></section>`;
 }
 
 function persistLocation() {
@@ -1918,17 +1963,7 @@ function renderSidebar() {
     `;
   }
   const holder = document.querySelector("#sidebar-records");
-  // Keep the rail short: the eight most recent records, plus the open one.
-  const railRecords = state.records.slice(0, 8);
-  const current = state.records.find((record) => record.id === state.recordId);
-  if (current && !railRecords.includes(current)) railRecords.push(current);
-  holder.innerHTML = hasArea ? railRecords.map((record) => `
-    <button class="side-record ${record.id === state.recordId ? "current" : ""}" data-record="${esc(record.id)}">
-      ${esc(record.title)}<small>${esc(record.category)}</small>
-    </button>
-  `).join("") + (state.records.length > railRecords.length ? `<button class="side-record side-record-more" data-route="issues">${t("sidebar_all_records", state.records.length)}</button>` : "") : `<p class="sidebar-empty">${t("sidebar_empty_records")}</p>`;
-  document.querySelectorAll(".sidebar [data-record]").forEach((button) => button.addEventListener("click", () => setRoute("record", button.dataset.record)));
-  document.querySelectorAll(".sidebar .side-record-more").forEach((button) => button.addEventListener("click", () => setRoute("issues")));
+  holder.innerHTML = "";
   if (areaHolder) areaHolder.querySelectorAll("[data-route]").forEach((button) => button.addEventListener("click", () => setRoute(button.dataset.route)));
   document.querySelectorAll("[data-route]").forEach((button) => button.classList.toggle("active", button.dataset.route === state.view || (state.view === "record" && button.dataset.route === "home") || (state.view === "representative-detail" && button.dataset.route === "representatives")));
 }
@@ -2050,6 +2085,7 @@ function renderHome() {
     <section class="news-layout">
       <div class="news-main">
         ${lead ? `
+          <div class="for-you-head"><span class="eyebrow">${hasProfession() ? t("recommended_eyebrow") : t("latest_eyebrow")} ${help("for_you")}</span></div>
           <button class="lead-story" data-record="${esc(lead.id)}">
             <span class="story-kicker">${esc(lead.type)}</span>
             <h2>${esc(lead.title)}</h2>
@@ -2057,16 +2093,17 @@ function renderHome() {
             <div class="story-byline">${byline(lead)}</div>
           </button>
           <div class="story-list">${rest.map((issue) => `<button class="story-row" data-record="${esc(issue.id)}"><span class="story-kicker">${esc(issue.type)}</span><h3>${esc(issue.title)}</h3><p>${esc(issue.summary)}</p><div class="story-byline">${byline(issue)}</div></button>`).join("")}</div>
-          <button class="text-btn" style="margin-top:14px" data-route="issues">${t("view_all_issues_arrow")}</button>
         ` : ""}
       </div>
       <aside class="news-rail">
         <article class="rail-widget"><span class="eyebrow">${hasProfession() ? t("recommended_eyebrow") : t("your_area_eyebrow")}</span><h3>${hasProfession() ? t("sorted_for_profile", esc(professionLabel())) : (hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_location"))}</h3><div class="rail-stat-row">${metrics.slice(0, 4).map((metric) => `<div class="rail-stat"><strong>${esc(metric.value)}</strong><span>${esc(metric.label)}</span></div>`).join("")}</div></article>
         <article class="rail-widget"><span class="eyebrow">${t("area_view_eyebrow")}</span><h3>${hasArea ? `${esc(area)}, ${esc(country)}` : t("choose_area_see_map")}</h3>${hasArea ? `<div class="language-row">${(state.dashboard.hierarchy || []).filter((level) => level !== "All levels" && level !== "Tous les niveaux").map((level) => `<span class="language-chip">${esc(level)}</span>`).join("")}</div>` : `<p class="panel-intro" style="margin:0">${t("home_body_no_area")}</p>`}<button class="text-btn" style="margin-top:10px" data-route="locations">${hasArea ? t("change_area_arrow") : t("choose_area_arrow")}</button></article>
-        <article class="rail-widget"><span class="eyebrow">${t("watchlist_eyebrow")}</span><h3>${t("watchlist_title")}</h3><div class="watch-list">${hasArea ? visibleRepresentatives.slice(0, 3).map((rep) => `<button class="watch-row" data-route="representatives"><span class="avatar-mini">${esc(rep.level.slice(0, 1))}</span><span><strong>${esc(representativeName(rep))}</strong><small>${esc(representativeLocality(rep))}</small></span><span class="watch-arrow">↗</span></button>`).join("") : `<div class="empty-state">${t("watchlist_empty")}</div>`}</div><button class="text-btn" style="margin-top:8px" data-route="representatives">${t("view_all_arrow")}</button></article>
+        <article class="rail-widget"><span class="eyebrow">${t("watchlist_eyebrow")} ${help("offices")}</span><h3>${t("watchlist_title")}</h3><div class="watch-list">${hasArea ? visibleRepresentatives.slice(0, 3).map((rep) => `<button class="watch-row" data-route="representatives"><span class="avatar-mini">${esc(rep.level.slice(0, 1))}</span><span><strong>${esc(representativeName(rep))}</strong><small>${esc(representativeLocality(rep))}</small></span><span class="watch-arrow">↗</span></button>`).join("") : `<div class="empty-state">${t("watchlist_empty")}</div>`}</div><button class="text-btn" style="margin-top:8px" data-route="representatives">${t("view_all_arrow")}</button></article>
       </aside>
     </section>
+      ${hasArea ? allRecordsSection() : ""}
   `;
+  wireIssueFilters();
 }
 
 function renderRecordCards(records) {
@@ -2109,7 +2146,7 @@ function renderGroups(fromLoad = false) {
   const mine = state.groups.filter((group) => interests.includes(group.topic));
   const others = state.groups.filter((group) => !interests.includes(group.topic) && group.members > 0);
   app.innerHTML = `
-    <section class="page-head"><div><span class="eyebrow">${t("groups_eyebrow")}</span><h1>${t("groups_title")}</h1><p>${t("groups_body")}</p></div><div class="head-note"><strong>${esc(state.dashboard.area)}</strong><span>${esc(state.dashboard.country)}</span></div></section>
+    <section class="page-head"><div><span class="eyebrow">${t("groups_eyebrow")} ${help("groups")}</span><h1>${t("groups_title")}</h1><p>${t("groups_body")}</p></div><div class="head-note"><strong>${esc(state.dashboard.area)}</strong><span>${esc(state.dashboard.country)}</span></div></section>
     ${interests.length ? `<span class="eyebrow">${t("groups_mine_eyebrow")}</span><section class="group-grid">${mine.map(groupCard).join("") || `<p class="empty-state">${t("groups_loading")}</p>`}</section>` : `<section class="panel"><span class="eyebrow">${t("groups_mine_eyebrow")}</span><p class="panel-intro">${t("groups_no_profile")}</p><button class="primary-btn" data-route="settings">${t("nav_settings")}</button></section>`}
     <span class="eyebrow" style="display:block;margin-top:22px">${t("groups_all_eyebrow")}</span>
     <section class="group-grid">${others.map(groupCard).join("") || `<p class="empty-state">${t("groups_loading")}</p>`}</section>
@@ -2137,7 +2174,7 @@ async function renderGroupDetail() {
     ${mine ? "" : `<div class="addressed-to">${t("group_not_in_profile")} <button class="text-btn" data-route="settings">${t("why_correct_it")}</button></div>`}
     <section class="section-grid rep-detail-grid">
       <article class="panel"><span class="eyebrow">${t("group_posts_eyebrow")}</span><h2>${t("group_posts_title")}</h2>
-        <div class="comment-form"><label class="form-label" for="group-message">${t("group_post_label")}</label><textarea id="group-message" class="feedback-textarea" placeholder="${t("group_post_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="group-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-group-post">${t("group_post_button")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div>
+        <div class="comment-form"><label class="form-label" for="group-message">${t("group_post_label")}</label><textarea id="group-message" class="feedback-textarea" placeholder="${t("group_post_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="group-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="submit-group-post">${t("group_post_button")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div>
         <div class="comment-list">${group.posts.length ? group.posts.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<div class="empty-state">${t("group_no_posts")}</div>`}</div>
       </article>
       <aside class="panel"><span class="eyebrow">${t("group_records_eyebrow")}</span><h2>${t("group_records_title")}</h2><p class="panel-intro">${t("group_records_body")}</p>
@@ -2164,7 +2201,8 @@ function renderAreaRequired() {
 }
 
 function wireIssueFilters() {
-  document.querySelectorAll("[data-issue-filter]").forEach((button) => button.addEventListener("click", () => { state.issueFilter = button.dataset.issueFilter; renderIssues(); bindAppActions(); }));
+  document.querySelectorAll("[data-show-more]").forEach((button) => button.addEventListener("click", () => { state.recordsShown += 12; const y = window.scrollY; render(); window.scrollTo({ top: y }); }));
+  document.querySelectorAll("[data-issue-filter]").forEach((button) => button.addEventListener("click", () => { state.issueFilter = button.dataset.issueFilter; state.recordsShown = 12; const y = window.scrollY; render(); window.scrollTo({ top: y }); }));
 }
 
 function wireRepresentativeControls() {
@@ -2173,20 +2211,31 @@ function wireRepresentativeControls() {
 }
 
 
-function renderIssues() {
-  if (!state.dashboard.area || !state.dashboard.country) return renderAreaRequired();
-  // Issues is the complete list, newest first, always — relevance ranking is
-  // for the Overview headlines only, so nothing can "disappear" here.
+function recordListMarkup(issues) {
+  return `
+    <section class="issue-list">${issues.map((issue) => { const hasRecord = state.records.some((record) => record.id === issue.id); return `<article class="issue-list-row"><div class="issue-list-main"><span class="case-kicker">${esc(issue.type)} · ${esc(issue.locality)}</span><h2>${esc(issue.title)}</h2><p>${esc(issue.summary)}</p><div class="record-meta"><span class="tag ${issue.status === "Illustrative fixture" ? "open" : "status"}">${esc(statusLabel(issue.status))}</span><span class="tag">${esc(issue.priority)}</span><span class="tag">${esc(t("updated_label", issue.last_update))}</span>${professionWeight(issue) > 0 ? `<span class="tag status">${t("matches_profile")}</span>` : ""}</div>${rankingExplanation(issue)}</div><div class="issue-list-side"><span class="issue-source">${esc(issue.source)}</span>${hasRecord ? `<button class="secondary-btn" data-record="${esc(issue.id)}">${t("open_evidence_arrow")}</button>` : `<button class="secondary-btn" data-action="issue-note">${t("view_source_note_arrow")}</button>`}</div></article>`; }).join("")}</section>
+  `;
+}
+
+function allRecordsSection() {
   const filters = ["All issues", "notices", "reference"];
   const filterLabels = { "All issues": t("filter_all_issues"), notices: t("filter_notices"), reference: t("filter_reference") };
+  const filterHelp = { "All issues": help("everything"), notices: help("published_notice"), reference: help("reference_record") };
   const isNotice = (issue) => String(issue.id || "").startsWith("notice-");
   const visible = state.issueFilter === "notices" ? state.issues.filter(isNotice) : state.issueFilter === "reference" ? state.issues.filter((issue) => !isNotice(issue)) : state.issues;
-  app.innerHTML = `
-    <section class="page-head compact-head"><div><span class="eyebrow">${t("issue_tracker_eyebrow")}</span><h1>${t("issue_tracker_title")}</h1><p>${t("issue_tracker_body")}</p></div><div class="head-note"><strong>${t("issues_near", state.issues.length, esc(state.dashboard.area || ""))}</strong><span>${t("source_labelled_records")}</span></div></section>
-    <div class="filter-row issue-filters">${filters.map((filter) => `<button class="filter-chip ${state.issueFilter === filter ? "selected" : ""}" data-issue-filter="${esc(filter)}">${esc(filterLabels[filter])}</button>`).join("")}</div>
-    <section class="issue-list">${visible.map((issue) => { const hasRecord = state.records.some((record) => record.id === issue.id); return `<article class="issue-list-row"><div class="issue-list-main"><span class="case-kicker">${esc(issue.type)} · ${esc(issue.locality)}</span><h2>${esc(issue.title)}</h2><p>${esc(issue.summary)}</p><div class="record-meta"><span class="tag ${issue.status === "Illustrative fixture" ? "open" : "status"}">${esc(statusLabel(issue.status))}</span><span class="tag">${esc(issue.priority)}</span><span class="tag">${esc(t("updated_label", issue.last_update))}</span>${professionWeight(issue) > 0 ? `<span class="tag status">${t("matches_profile")}</span>` : ""}</div>${rankingExplanation(issue)}</div><div class="issue-list-side"><span class="issue-source">${esc(issue.source)}</span>${hasRecord ? `<button class="secondary-btn" data-record="${esc(issue.id)}">${t("open_evidence_arrow")}</button>` : `<button class="secondary-btn" data-action="issue-note">${t("view_source_note_arrow")}</button>`}</div></article>`; }).join("")}</section>
-  `;
-  wireIssueFilters();
+  return `
+    <section class="all-records" id="all-records">
+      <div class="section-heading"><div><span class="eyebrow">${t("issue_tracker_eyebrow")} ${help("everything")}</span><h2>${t("issues_near", state.issues.length, esc(state.dashboard.area))}</h2></div></div>
+      <div class="filter-row issue-filters">${filters.map((filter) => `<span class="filter-with-help"><button class="filter-chip ${state.issueFilter === filter ? "selected" : ""}" data-issue-filter="${esc(filter)}">${esc(filterLabels[filter])}</button>${filterHelp[filter]}</span>`).join("")}</div>
+      ${recordListMarkup(visible.slice(0, state.recordsShown))}
+      ${visible.length > state.recordsShown ? `<button class="secondary-btn show-more" data-show-more>${t("show_more_records", Math.min(12, visible.length - state.recordsShown), visible.length - state.recordsShown)}</button>` : ""}
+    </section>`;
+}
+
+function renderIssues() {
+  // Issues merged into Home: same page, scrolled to the full list.
+  renderHome();
+  document.querySelector("#all-records")?.scrollIntoView({ block: "start" });
 }
 
 function renderRepresentatives() {
@@ -2334,7 +2383,7 @@ function renderRepresentativeDetail() {
   app.innerHTML = `
     <button class="breadcrumb" data-route="representatives">${t("back_to_representatives")}</button>
     <section class="rep-detail-header"><div class="rep-photo"><img src="${esc(representativeProfile(rep).photo)}" alt="${esc(representativeName(rep))}" onerror="this.onerror=null;this.src='${esc(representativeProfile(rep).fallback)}'" /></div><div class="rep-detail-copy"><span class="rep-level">${t("office_level_suffix", esc(rep.level))}</span><h1>${esc(representativeName(rep))}</h1><p>${esc(rep.name)} · ${esc(rep.role)} · ${esc(representativeLocality(rep))} · ${esc(rep.coverage)}</p><div class="rep-detail-actions"><button class="follow-btn ${state.followedRepresentatives.has(rep.id) ? "followed" : ""}" data-follow-detail="${esc(rep.id)}">${state.followedRepresentatives.has(rep.id) ? t("following") : t("follow_office")}</button><button class="secondary-btn" data-action="share-representative" data-share-title="${esc(representativeName(rep))}">${t("share_profile")}</button><span class="verified-label">${t("public_profile_verified")}</span></div></div></section>
-    <div class="rep-stat-grid"><article class="rep-stat-card"><span>${t("stat_card_commitments")}</span><strong>${rep.commitments}</strong><small>${t("stat_card_commitments_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_verified")}</span><strong>${rep.verified}</strong><small>${t("stat_card_verified_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_response_rate")}</span><strong>${pctText(rep.response_rate)}</strong><small>${t("stat_card_response_rate_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong><small>${t("stat_card_community_pulse_detail")}</small></article></div>
+    <div class="rep-stat-grid"><article class="rep-stat-card"><span>${t("stat_card_commitments")} ${help("records_on_file")}</span><strong>${rep.commitments}</strong><small>${t("stat_card_commitments_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_verified")} ${help("sourced")}</span><strong>${rep.verified}</strong><small>${t("stat_card_verified_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_response_rate")} ${help("response_rate")}</span><strong>${pctText(rep.response_rate)}</strong><small>${t("stat_card_response_rate_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_community_pulse")} ${help("community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong><small>${t("stat_card_community_pulse_detail")}</small></article></div>
     <section class="section-grid rep-detail-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">${t("public_record_eyebrow")}</span><h2>${t("public_record_title")}</h2></div><span class="live-pill"><i></i> ${t("activity_statistics")}</span></div><p class="panel-intro">${t("public_record_body")}</p><div class="bar-list"><div class="bar-row"><div><span>${t("bar_commitments_evidence")}</span><strong>${verifiedPct}%</strong></div><div class="bar-track"><span style="width:${verifiedPct}%"></span></div></div><div class="bar-row"><div><span>${t("bar_questions_answered")}</span><strong>${pctText(rep.response_rate)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.response_rate)}%"></span></div></div><div class="bar-row"><div><span>${t("bar_community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.community_pulse)}%"></span></div></div></div><div class="public-record-list"><div><span>${t("list_last_update")}</span><strong>${esc(rep.last_update)}</strong></div><div><span>${t("list_questions_received")}</span><strong>${rep.questions_received}</strong></div><div><span>${t("list_updates_issued")}</span><strong>${rep.updates_issued}</strong></div><div><span>${t("list_office_replies")}</span><strong>${rep.responses_on_file || 0}</strong></div></div><p class="rep-bio">${esc(rep.bio)}</p></article><aside class="panel right-reply"><span class="eyebrow">${t("right_of_reply_eyebrow")}</span><h2>${t("right_of_reply_title")}</h2><p class="panel-intro">${t("right_of_reply_body")}</p>${userRole() === "office" ? `<label class="form-label" for="rep-response-type">${t("response_type_label")}</label><select id="rep-response-type" class="feedback-select"><option>${t("response_type_correct")}</option><option>${t("response_type_context")}</option><option>${t("response_type_source")}</option></select><label class="form-label" for="rep-response">${t("office_response_label")}</label><textarea id="rep-response" class="feedback-textarea" placeholder="${t("office_response_placeholder")}"></textarea><button class="primary-btn" id="submit-rep-response">${t("submit_response")}</button><p class="disclaimer">${t("response_disclaimer")}</p>` : `<p class="disclaimer office-only-note">${t("office_only_reply")}</p>`}<div class="reply-list"><span class="eyebrow">${t("responses_on_file_eyebrow")}</span>${responses.length ? responses.map((item) => `<div class="reply-item"><strong>${esc(item.type || t("office_response_fallback"))}</strong><p>${esc(item.message)}</p><small>${esc(item.user_label || t("office_response_fallback"))} · ${esc(item.status)} · ${esc(formatActivityDate(item.created_at))}</small></div>`).join("") : `<div class="empty-reply">${t("no_response_yet")}</div>`}</div></aside></section>
     <article class="panel" style="margin-top:18px"><span class="eyebrow">${t("track_record_eyebrow")}</span><h2>${t("track_record_title")}</h2><ul class="fact-list">${representativeTrackRecord(rep).map((entry) => `<li>${esc(entry)}</li>`).join("")}</ul></article>
   `;
@@ -2350,7 +2399,7 @@ function renderRecord() {
     <button class="breadcrumb" data-route="home">${t("back_to_records")}</button>
     <section class="record-header">
       <div><span class="case-kicker">${esc(record.category)} · ${esc(record.location)}</span><h1>${esc(record.title)}</h1><p>${esc(record.summary)}</p></div>
-      <div class="record-status"><div class="status-line"><span class="status-check">✓</span>${esc(record.status)}</div><small>${esc(record.source_label)}<br />${t("last_checked", esc(record.source_date))} · ${esc(record.status_detail)}</small><button class="secondary-btn share-source" data-action="share-source" data-share-title="${esc(record.title)}" data-share-type="${esc(record.category)}">${t("share_source")}</button></div>
+      <div class="record-status"><div class="status-line"><span class="status-check">✓</span>${esc(record.status)} ${record.provenance_status === "published" ? help("not_verified") : record.provenance_status === "illustrative" ? help("reference_record") : ""}</div><small>${esc(record.source_label)}<br />${t("last_checked", esc(record.source_date))} · ${esc(record.status_detail)}</small><button class="secondary-btn share-source" data-action="share-source" data-share-title="${esc(record.title)}" data-share-type="${esc(record.category)}">${t("share_source")}</button></div>
     </section>
     <nav class="tabs" aria-label="Record sections">${tabs.map((tab) => `<button class="tab ${state.tab === tab ? "active" : ""}" data-tab="${tab}">${tab === "overview" ? t("tab_evidence") : tab === "feedback" ? t("tab_feedback") : tab === "representative" ? t("tab_representative") : t("tab_channels")}</button>`).join("")}</nav>
         <section class="detail-content">${state.tab === "overview" ? renderOverview(record) : state.tab === "feedback" ? renderFeedback(record) : renderRepresentative(record)}</section>
@@ -2401,11 +2450,11 @@ function renderOverview(record) {
         ${showingTranslation ? `<p class="translate-badge">${t("machine_translation_badge")} <button class="text-btn" id="show-original-language">${t("show_original")}</button></p>` : ""}
         <div class="explanation">${esc(plainLanguage)}</div>
         <div class="list-block"><h3>${t("what_source_says")}</h3><ul class="fact-list">${facts.map((fact) => `<li>${esc(fact)}</li>`).join("")}</ul></div>
-        <div class="list-block"><h3>${t("what_we_cannot_confirm")}</h3><ul class="fact-list unknown askable">${unknowns.map((fact, index) => `<li><button class="ask-unknown" data-ask-unknown="${index}" title="${t("ask_office_about_this")}"><span>${esc(fact)}</span><small>${t("ask_office_arrow", esc(responsibleOffice(record).name))}</small></button></li>`).join("")}</ul></div>
+        <div class="list-block"><h3>${t("what_we_cannot_confirm")} ${help("unknowns")}</h3><ul class="fact-list unknown askable">${unknowns.map((fact, index) => `<li><button class="ask-unknown" data-ask-unknown="${index}" title="${t("ask_office_about_this")}"><span>${esc(fact)}</span><small>${t("ask_office_arrow", esc(responsibleOffice(record).name))}</small></button></li>`).join("")}</ul></div>
       </article>
       <aside class="panel"><span class="eyebrow">${t("source_record_eyebrow")}</span>${record.evidence.map((item) => `<div class="source-card ${item.kind === "open" ? "open" : ""}"><div class="source-top"><span>${esc(item.label)}</span><span>${item.kind === "open" ? t("evidence_open_question") : record.provenance_status === "verified" ? t("evidence_verified") : record.provenance_status === "published" ? t("evidence_published") : record.provenance_status === "user-submitted" ? t("evidence_submitted") : t("evidence_illustrative")}</span></div><blockquote>“${esc(item.quote)}”</blockquote><footer>${esc(record.source_label)} · ${esc(item.page)}</footer></div>`).join("")}<p class="disclaimer">${esc(record.provenance_note || t("record_available_review"))}</p></aside>
     </div>
-    <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="perspective-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><p class="addressed-to">${t("addressed_to", esc(responsibleOffice(record).name))}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button>${(() => { const topic = issueTopic(record); const group = state.groups.find((item) => item.topic === topic); const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en; return topic ? `<div class="lands-on"><span class="eyebrow">${t("lands_on_eyebrow")}</span><p>${group ? t("lands_on_body", group.members, esc(names[topic] || topic), esc(state.dashboard.area)) : t("lands_on_body_unknown", esc(names[topic] || topic))}</p><button class="text-btn" data-open-group="${topic}">${t("open_group_arrow")}</button></div>` : ""; })()}</aside></div>
+    <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="perspective-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><p class="addressed-to">${t("addressed_to", esc(responsibleOffice(record).name))}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button>${(() => { const topic = issueTopic(record); const group = state.groups.find((item) => item.topic === topic); const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en; return topic ? `<div class="lands-on"><span class="eyebrow">${t("lands_on_eyebrow")}</span><p>${group ? t("lands_on_body", group.members, esc(names[topic] || topic), esc(state.dashboard.area)) : t("lands_on_body_unknown", esc(names[topic] || topic))}</p><button class="text-btn" data-open-group="${topic}">${t("open_group_arrow")}</button></div>` : ""; })()}</aside></div>
     ${renderCommunityPanel(record)}
   `;
 }
@@ -2446,7 +2495,7 @@ function renderUnderstoodCard() {
   const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
   if (!p.interests.length && !p.understood) return "";
   const options = Object.keys(names).filter((topic) => !p.interests.includes(topic)).map((topic) => `<option value="${topic}">${esc(names[topic])}</option>`).join("");
-  return `<div class="understood-card"><span class="eyebrow">${t("understood_eyebrow")}</span>
+  return `<div class="understood-card"><span class="eyebrow">${t("understood_eyebrow")} ${help("understood")}</span>
     ${p.understood ? `<p class="understood-sentence">${esc(p.understood)}</p>` : ""}
     <p class="field-hint">${t("understood_note")}</p>
     <span class="eyebrow">${t("show_first_eyebrow")}</span>
@@ -2903,7 +2952,7 @@ function render() {
   if (state.view === "record" && getRecord()) wireRecordNavigation(getRecord());
   if (state.view === "locations") { wireLocationPicker(); initLocationLeafletMap(); }
   if (state.view === "explain") wireExplainForm();
-  if (state.view === "issues") wireIssueFilters();
+  if (state.view === "home" || state.view === "issues") wireIssueFilters();
   if (state.view === "representatives") wireRepresentativeControls();
   if (state.view === "settings") wireSettingsForm();
   renderSidebar();
