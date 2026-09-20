@@ -1942,7 +1942,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 asset = PUBLIC / match.group(1).lstrip("/")
                 stamp = int(asset.stat().st_mtime) if asset.exists() else 0
                 return f'{match.group(0)}?v={stamp}'
-            payload = re.sub(r'/static/[A-Za-z0-9_./-]+\.(?:js|css)', versioned, payload.decode("utf-8")).encode("utf-8")
+            payload = re.sub(r'(?<=["\'])/?static/[A-Za-z0-9_./-]+\.(?:js|css)(?=["\'?])', versioned, payload.decode("utf-8")).encode("utf-8")
         self.send_bytes(payload, content_type)
 
 
