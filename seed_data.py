@@ -64,6 +64,13 @@ PROFESSIONS = {
     "fr": ["Enseignant(e)", "Commerçant(e)", "Infirmier(ère)", "Chauffeur", "Étudiant(e)", "Couturier(ère)", "Agriculteur(rice)", "Mécanicien(ne)", "Coiffeur(se)", "Retraité(e)", "Agent de santé communautaire", "Vendeur(se) au marché"],
     "en": ["Teacher", "Trader", "Nurse", "Driver", "Student", "Tailor", "Farmer", "Mechanic", "Hairdresser", "Retired", "Community health worker", "Market vendor"],
 }
+# Interests a seeded resident of each profession lists (same controlled
+# vocabulary as CIVIC_TOPICS); index-aligned with PROFESSIONS.
+PROFESSION_INTERESTS = [
+    ["education", "exams", "meeting"], ["markets", "tax", "roads", "energy"], ["health", "water", "sanitation"], ["roads", "transport", "energy"],
+    ["education", "exams", "employment", "identity"], ["energy", "markets", "tax"], ["farming", "water", "land", "livestock"], ["transport", "roads", "energy"],
+    ["energy", "water", "markets"], ["health", "registry", "water"], ["health", "sanitation", "water", "meeting"], ["markets", "sanitation", "roads"],
+]
 
 # ---------------------------------------------------------------------------
 # Notice topics, by office level. {area} = locality, {nb} = neighbourhood,
@@ -117,6 +124,7 @@ TOPICS: dict[str, dict[str, list[dict[str, str]]]] = {
             {"cat": "Inondations", "title": "Plan pluies {year} : zones à risque et points de repli", "summary": "La région publie la carte des zones inondables et les sites d’accueil en cas de crue.", "body": "Les quartiers de {nb} et des berges figurent en zone rouge. Les sites de repli sont les écoles et centres communautaires listés dans le plan, disponible au bureau régional et dans les mairies. Un numéro d’alerte gratuit est activé pendant la saison."},
             {"cat": "Routes", "title": "Axe {area}–périphérie : travaux nocturnes jusqu’au {d2}", "summary": "Réfection de chaussée par tronçons de nuit pour limiter les embouteillages. Circulation alternée.", "body": "Les travaux ont lieu de 21 h à 5 h jusqu’au {d2}. Une voie reste ouverte en circulation alternée. Les transporteurs sont invités à éviter l’axe entre 21 h et minuit. Le calendrier par tronçon est affiché au bureau régional."},
             {"cat": "Emploi", "title": "Programme jeunes {year} : 600 places de formation", "summary": "La région ouvre 600 places en formation professionnelle courte. Inscriptions jusqu’au {d2}.", "body": "Filières : électricité, plomberie, couture industrielle, maintenance moto, agroalimentaire. Conditions : 18–35 ans, résidence dans la région. Dossier à déposer au bureau régional ou dans les mairies avant le {d2}. Sélection publiée le mois suivant."},
+            {"cat": "Élevage", "title": "Campagne de vaccination du bétail du {d1} au {d2}", "summary": "Vaccination gratuite des bovins, ovins, caprins et volailles dans les parcs et marchés à bétail de la région.", "body": "Les équipes vétérinaires passent dans chaque commune selon le calendrier affiché en mairie. Amenez les animaux tôt le matin. Un carnet de vaccination est remis par troupeau. Signalez toute mortalité inhabituelle au service régional de l’élevage."},
             {"cat": "Foncier", "title": "Opération de sécurisation foncière à {nb}", "summary": "Recensement des occupants et délivrance d’attestations pour les parcelles de {nb}. Passage des équipes du {d1} au {d2}.", "body": "Les équipes passeront maison par maison avec un badge officiel. Aucun paiement n’est demandé pendant le recensement. Les contestations sont reçues au bureau régional dans les 30 jours suivant l’affichage des listes."},
         ],
         "en": [
@@ -125,6 +133,7 @@ TOPICS: dict[str, dict[str, list[dict[str, str]]]] = {
             {"cat": "Flooding", "title": "{year} rains plan: risk zones and safe sites", "summary": "The county publishes the flood-risk map and the reception sites in case of flooding.", "body": "{nb} and the riverside settlements are in the red zone. Safe sites are the schools and community halls listed in the plan, available at the county office and sub-county offices. A free alert line is active during the season."},
             {"cat": "Roads", "title": "{area} ring road: night works until {d2}", "summary": "Resurfacing in night-time sections to limit traffic jams. One lane open each way.", "body": "Works run from 9 pm to 5 am until {d2}. One lane stays open under traffic control. Transporters are asked to avoid the road between 9 pm and midnight. The section schedule is posted at the county office."},
             {"cat": "Employment", "title": "{year} youth programme: 600 training places", "summary": "The county opens 600 places in short vocational courses. Applications until {d2}.", "body": "Courses: electrical, plumbing, industrial tailoring, motorcycle maintenance, food processing. Eligibility: 18–35, resident in the county. Apply at the county office or any sub-county office before {d2}. Selection published the following month."},
+            {"cat": "Livestock", "title": "Livestock vaccination campaign {d1} to {d2}", "summary": "Free vaccination of cattle, sheep, goats and poultry at the county’s livestock markets and holding grounds.", "body": "Veterinary teams visit each sub-county on the schedule posted at the ward office. Bring animals early in the morning. A vaccination card is issued per herd. Report unusual deaths to the county livestock office."},
             {"cat": "Land", "title": "Land regularisation exercise in {nb}", "summary": "Census of occupants and issue of certificates for plots in {nb}. Teams visit from {d1} to {d2}.", "body": "Teams go house to house with an official badge. No payment is requested during the census. Objections are received at the county office within 30 days of the lists being posted."},
         ],
     },
@@ -135,6 +144,7 @@ TOPICS: dict[str, dict[str, list[dict[str, str]]]] = {
             {"cat": "Impôts", "title": "Taxe professionnelle : échéance reportée au {d2}", "summary": "Les petites entreprises ont jusqu’au {d2} pour déclarer sans pénalité. Déclaration possible par téléphone.", "body": "Le report concerne les entreprises dont le chiffre d’affaires est inférieur au seuil. La déclaration se fait au centre des impôts ou par le service téléphonique gratuit. Un reçu est remis pour chaque paiement."},
             {"cat": "Identité", "title": "Carte d’identité nationale : nouveaux centres d’enrôlement", "summary": "Trois centres ouvrent à {area}, dont un à {nb}. Enrôlement gratuit sur rendez-vous.", "body": "Les centres ouvrent le {d1}. Pièces : acte de naissance ou jugement supplétif, certificat de résidence. L’enrôlement est gratuit. Toute demande de paiement doit être signalée. Délai de délivrance annoncé : 60 jours."},
             {"cat": "Élections", "title": "Révision des listes électorales du {d1} au {d2}", "summary": "Les nouveaux majeurs et les personnes ayant déménagé peuvent s’inscrire ou se transférer. Centres ouverts 7 j/7.", "body": "La révision se fait dans les centres d’enrôlement de chaque commune. Apportez une pièce d’identité. Les listes provisoires seront affichées 15 jours pour réclamation. Aucun frais n’est exigé."},
+            {"cat": "Agriculture", "title": "Engrais subventionné : inscriptions des producteurs jusqu’au {d2}", "summary": "Les producteurs de maïs, riz et maraîchage peuvent s’inscrire pour l’engrais subventionné auprès des services agricoles. Quota par hectare déclaré.", "body": "L’inscription se fait au service agricole de la préfecture ou via les coopératives agréées avant le {d2}. Pièces : pièce d’identité, déclaration de superficie. Le prix subventionné est affiché ; tout dépassement doit être signalé. Distribution prévue trois semaines après la clôture."},
             {"cat": "Santé", "title": "Alerte sanitaire : cas de choléra signalés, mesures de prévention", "summary": "Des cas ont été confirmés dans deux régions. Consignes : eau traitée, lavage des mains, consultation rapide en cas de diarrhée.", "body": "Le ministère rappelle les mesures : boire de l’eau traitée ou bouillie, se laver les mains au savon, se rendre immédiatement au centre de santé en cas de diarrhée aqueuse. La prise en charge est gratuite dans les centres publics. Bilan mis à jour chaque semaine."},
         ],
         "en": [
@@ -143,6 +153,7 @@ TOPICS: dict[str, dict[str, list[dict[str, str]]]] = {
             {"cat": "Tax", "title": "Business levy: deadline extended to {d2}", "summary": "Small businesses have until {d2} to file without penalty. Filing possible by phone.", "body": "The extension applies to businesses below the turnover threshold. File at the tax office or through the free phone service. A receipt is issued for every payment."},
             {"cat": "Identity", "title": "National ID card: new enrolment centres", "summary": "Three centres open in {area}, one of them in {nb}. Free enrolment by appointment.", "body": "The centres open on {d1}. Documents: birth certificate or affidavit, proof of residence. Enrolment is free. Any request for payment should be reported. Announced issue time: 60 days."},
             {"cat": "Elections", "title": "Voter register review from {d1} to {d2}", "summary": "New adults and people who have moved can register or transfer. Centres open 7 days a week.", "body": "The review takes place at the enrolment centres of each ward. Bring an ID. Provisional lists will be posted for 15 days for objections. No fees are charged."},
+            {"cat": "Agriculture", "title": "Subsidised fertiliser: farmer registration until {d2}", "summary": "Maize, rice and vegetable growers can register for subsidised fertiliser with the agricultural extension office. Quota per declared hectare.", "body": "Register at the district agricultural office or through accredited cooperatives before {d2}. Documents: ID, declaration of area farmed. The subsidised price is posted; any overcharge should be reported. Distribution starts three weeks after registration closes."},
             {"cat": "Health", "title": "Health alert: cholera cases reported, prevention measures", "summary": "Cases have been confirmed in two regions. Advice: treated water, hand washing, seek care quickly for diarrhoea.", "body": "The ministry reminds everyone: drink treated or boiled water, wash hands with soap, go to the health centre immediately for watery diarrhoea. Treatment is free at public facilities. The tally is updated weekly."},
         ],
     },
@@ -267,6 +278,29 @@ FEEDBACK_DRAFTS = {
     ],
 }
 
+GROUP_POSTS = {
+    "fr": [
+        "Quelqu’un à {nb} a-t-il reçu l’avis ? Chez nous rien n’est affiché.",
+        "On se retrouve samedi matin au marché pour préparer nos questions au bureau. Qui vient ?",
+        "J’ai posé la question au bureau la semaine dernière, toujours pas de réponse. Je relance ici pour que ce soit visible.",
+        "Pour info : le service m’a dit que la date est repoussée de deux semaines. À confirmer par écrit.",
+        "Est-ce que quelqu’un connaît le montant exact ? On m’a donné deux chiffres différents.",
+        "Merci à ceux qui ont partagé le document. Je l’ai lu, la partie sur {nb} n’est pas claire.",
+        "Proposition : on rédige une seule question commune et on la dépose ensemble.",
+        "Nouveau ici. Même situation que vous à {nb}. Comment ça s’est passé pour vous ?",
+    ],
+    "en": [
+        "Has anyone in {nb} received the notice? Nothing is posted where we are.",
+        "Meeting Saturday morning at the market to prepare our questions for the office. Who is coming?",
+        "I asked the office last week, still no answer. Raising it here so it stays visible.",
+        "FYI: the service told me the date moves by two weeks. To be confirmed in writing.",
+        "Does anyone know the exact amount? I was given two different figures.",
+        "Thanks to those who shared the document. I read it; the part about {nb} is not clear.",
+        "Proposal: we write one common question and submit it together.",
+        "New here. Same situation as you in {nb}. How did it go for you?",
+    ],
+}
+
 MONTHS = {"fr": ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."], "en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]}
 
 
@@ -312,7 +346,12 @@ def seed(app: dict[str, Any]) -> None:
             used.add(username)
             role = "organizer" if rng.random() < 0.12 else "resident"
             user = create_user(username, DEMO_PASSWORD, f"{first} {last}", role, country, rng.choice(cfg["areas"]))
-            user["profession"] = rng.choice(PROFESSIONS[lang])
+            profession_index = rng.randrange(len(PROFESSIONS[lang]))
+            user["profession"] = PROFESSIONS[lang][profession_index]
+            interests = list(PROFESSION_INTERESTS[profession_index])
+            if rng.random() < 0.4:
+                interests.append(rng.choice(["flooding", "elections", "budget", "permits", "safety", "services"]))
+            user["interests"] = [topic for topic in interests if topic not in interests[:interests.index(topic)]]
             user["created_at"] = iso(rand_dt(200, 5))
             residents.append(user)
         office_users = {}
@@ -388,6 +427,18 @@ def seed(app: dict[str, Any]) -> None:
                 replies.append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "type": kind, "message": fill(template, nb=rng.choice(cfg["areas"]), d1=fmt_date(dt + timedelta(days=5), lang), d2=fmt_date(dt + timedelta(days=19), lang), ref=f"{now.year}-{rng.randint(100, 999)}", amount=rng.choice([500, 1000, 1500, 2500])), "status": "Submitted for review", "created_at": iso(dt), "user_id": author["id"], "user_label": author["display_name"]})
             replies.sort(key=lambda item: item["created_at"], reverse=True)
             app["REP_RESPONSES"][app["response_key"](country, level)] = replies
+
+        # --- Group posts: for every topic some residents in this country care about
+        topics_here = sorted({topic for u in residents for topic in u.get("interests", [])})
+        for topic in topics_here:
+            members = [u for u in residents if topic in u.get("interests", [])]
+            for template in rng.sample(GROUP_POSTS[lang], min(len(GROUP_POSTS[lang]), rng.choice([1, 2, 3, 4, 6]))):
+                author = rng.choice(members)
+                anonymous = rng.random() < 0.3
+                label = (f"Un·e résident·e de {author['locality']}" if lang == "fr" else f"A resident of {author['locality']}") if anonymous else author["display_name"]
+                app["GROUP_POSTS"].setdefault(f"{country}|{topic}", []).append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": author["id"], "user_label": label, "anonymous": anonymous, "message": fill(template, nb=rng.choice(cfg["areas"])), "created_at": iso(rand_dt(60, 0.5))})
+        for key in list(app["GROUP_POSTS"]):
+            app["GROUP_POSTS"][key].sort(key=lambda item: item["created_at"], reverse=True)
 
         # --- Shares
         for _ in range(rng.randint(25, 40)):

@@ -24,6 +24,7 @@ Representative sessions, in order:
 | 20 Sep | Accounts (PBKDF2, sessions, roles), JSON persistence, `seed_data.py` with ~250 accounts, ~240 notices and ~1,000 comments across five countries | Seed content (notice topics, resident comments, office replies in FR/EN with local neighbourhoods and names) written with the model; volumes and timelines verified against the API |
 | 20 Sep | Free-text profession interpreted by the local model into topic weights; life-stage weights | Prompt and schema designed with the model; tested with French, English and Yorùbá inputs |
 | 20 Sep | Unknowns become questions addressed to the responsible office; gzip; README opener | Triggered by an independent AI review of the repository that pointed out the claim was not yet wired |
+| 20 Sep | Repositioning around the person: free-text profile → visible/editable "what we understood" → fixed weights; "Why am I seeing this?"; anonymous posting; groups by topic × country | Brief written by the author with a second AI session; implemented and browser-verified in this one, including a sensitive-data probe of the interpreter ("moto-taxi driver, Muslim, diabetic" → transport, roads; nothing else echoed) |
 
 ## What the tools were not used for
 

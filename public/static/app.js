@@ -24,6 +24,9 @@ const state = {
   repResponses: {},
   repStats: null,
   askUnknown: null,
+  groups: [],
+  groupTopic: null,
+  group: null,
   sessionId: (() => { try { return localStorage.getItem("civic-bridge-session") || (localStorage.setItem("civic-bridge-session", Math.random().toString(36).slice(2)), localStorage.getItem("civic-bridge-session")); } catch (error) { return "anon"; } })(),
   followedRepresentatives: new Set(),
   user: null,
@@ -35,7 +38,7 @@ const state = {
   explainBusy: false,
   explainTitleDraft: "",
   translation: null,
-  preferences: { name: "", profession: "", age: "", mode: "", language: "" },
+  preferences: { name: "", description: "", interests: [], understood: "", age: "", mode: "", language: "" },
   aiStatus: null,
   aiStatusDismissed: false,
   voicesLoaded: false,
@@ -80,6 +83,38 @@ const STRINGS = {
     nav_representatives: "Representatives",
     nav_news: "News & alerts",
     nav_channels: "Access channels",
+    nav_groups: "People like you",
+    groups_eyebrow: "PEOPLE THIS LANDS ON",
+    groups_title: "The same issue, the same place, the same situation.",
+    groups_body: "A group is everyone in your country whose profile lists the same topic. Compare notes, ask what others were told, prepare one common question — with your name or without it.",
+    groups_mine_eyebrow: "YOUR GROUPS · FROM YOUR PROFILE",
+    groups_all_eyebrow: "ALL GROUPS IN YOUR COUNTRY",
+    groups_no_profile: "Tell us what you do in Settings and your groups appear here. Browsing stays open to everyone either way.",
+    groups_loading: "Loading…",
+    group_members: (n) => `${n} member${n === 1 ? "" : "s"}`,
+    group_posts: (n) => `${n} post${n === 1 ? "" : "s"}`,
+    group_from_profile: "from your profile",
+    groups_privacy_note: "Groups show a member count, never a member list. Posting anonymously shows only your topic and locality; your account is never attached to the post, and no phone number is ever linked to it.",
+    back_to_groups: "← Back to groups",
+    group_eyebrow: "GROUP",
+    group_intro: (n, country) => `${n} people in ${country} have this topic in their profile.`,
+    group_localities: (list) => `Where they are: ${list}`,
+    group_members_label: "members",
+    group_not_in_profile: "This topic is not in your profile — you can still read and post.",
+    group_posts_eyebrow: "CONVERSATION",
+    group_posts_title: "What people in this situation are saying.",
+    group_post_label: "Ask or share something with the group",
+    group_post_placeholder: "Did anyone else get this notice? What were you told?",
+    group_post_button: "Post to the group",
+    group_no_posts: "No posts yet. Start the conversation.",
+    group_records_eyebrow: "RECORDS FOR THIS GROUP",
+    group_records_title: "What is on the record for this topic.",
+    group_records_body: "Every notice and record in your area that concerns this topic, newest first.",
+    group_no_records: "No records on this topic in your area yet.",
+    lands_on_eyebrow: "WHO ELSE THIS LANDS ON",
+    lands_on_body: (n, topic, area) => `${n} people in your country list ${topic} in their profile. You are not working this out alone.`,
+    lands_on_body_unknown: (topic) => `People whose profile lists ${topic} see this record first too.`,
+    open_group_arrow: "Open the group →",
     nav_feedback: "My feedback",
     sidebar_saved_records: "Saved records",
     sidebar_all_records: (n) => `All ${n} records →`,
@@ -600,10 +635,29 @@ const STRINGS = {
     nav_settings: "Settings",
     settings_eyebrow: "SETTINGS",
     settings_title: "Make this yours.",
-    settings_body: "These preferences shape how issues are sorted and shown to you — before you sign in or after. Saved to this browser only.",
+    settings_body: "You describe who you are; the app shows what it understood, and you correct it. That profile changes the order of what you see — never what you can see. Saved in this browser; when you sign in, your topics also travel with your account so your groups follow you.",
     settings_scope_note: "This applies to this browser on this device. Sign in and it stays with your local account here; without signing in, it still applies for this session.",
     settings_name_label: "Your name (optional)",
     settings_name_placeholder: "How should we address you?",
+    settings_description_label: "Tell us what you do — or who you are filling this in for",
+    settings_description_hint: "In any language, in your own words. For example: “I farm maize and sell at the market on Fridays” · “Je suis enseignante à l’école primaire” · “mo n ta ẹran ni ọja”.",
+    settings_description_placeholder: "I sell tomatoes at the roadside and keep three goats…",
+    understand_me: "Understand this",
+    understood_eyebrow: "WHAT WE UNDERSTOOD",
+    understood_note: "This is our guess. Remove or add topics below — your edit always wins. Nothing else is inferred, stored or learned from what you do on the platform.",
+    show_first_eyebrow: "SO WE WILL SHOW YOU FIRST",
+    remove_interest: "Remove",
+    add_interest: "+ add a topic",
+    clear_profile: "Clear my profile",
+    understood_by_model: "Interpreted by the local model. Correct it if it is wrong.",
+    understood_by_keywords: "No local model connected — interpreted by keyword matching. Correct it if it is wrong.",
+    why_am_i_seeing_this: "Why am I seeing this here?",
+    why_interest: (topic, points, words, understood) => `This record is about ${topic}. ${words ? `You told us ${words}, which we understood as “${understood}”, ` : `Your profile lists ${understood}, `}so ${topic} counts +${points}.`,
+    why_age: (band, points) => `Your age band (${band}) adds +${points}: it changes order only, never what you can see.`,
+    why_total: (total) => `Score: +${total}. Records with 0 simply keep their date order.`,
+    why_fixed_weights: "The weights are a fixed, published table in the source code. We infer nothing behind your back and learn nothing from your behaviour.",
+    why_correct_it: "We inferred this — correct it →",
+    post_anonymously: (persona) => `Post anonymously, as “${persona}”`,
     settings_profession_text_label: "What do you do? (any language)",
     settings_profession_text_placeholder: "e.g. I sell fish at Bè market · je suis maçon à Abobo · mo n ta ẹran",
     speak_profession: "Say it instead of typing",
@@ -631,7 +685,7 @@ const STRINGS = {
     stop_listening: "Stop",
     settings_aside_eyebrow: "WHAT THIS CHANGES",
     settings_aside_title: "Where these preferences show up.",
-    settings_aside_body: "Profession reorders issues on Overview and Issues so what's relevant to you surfaces first. Reading comfort sets whether a record opens as text or offers to read itself aloud. Your name appears as a small “adapted for you” note on records. Preferred language pre-selects translation on a record's Evidence tab.",
+    settings_aside_body: "Your topics reorder the Overview and Issues so what concerns you surfaces first, and decide which groups are yours. Every record shows “Why am I seeing this here?” with the exact points. Age band adds a small life-stage weight. Reading comfort sets whether a record opens as text or offers to read itself aloud; preferred language pre-selects translation. Nothing is inferred from your behaviour and nothing sensitive is kept.",
     // AI connection status
     ai_status_missing_title: "Local AI isn't connected.",
     ai_status_missing_body: "Translation, read-aloud, structured feedback drafts, and “Explain a source” all need it. In a terminal, run:",
@@ -665,6 +719,38 @@ const STRINGS = {
     nav_representatives: "Représentants",
     nav_news: "Actualités et alertes",
     nav_channels: "Canaux d’accès",
+    nav_groups: "Des gens comme vous",
+    groups_eyebrow: "LES PERSONNES CONCERNÉES",
+    groups_title: "Même sujet, même lieu, même situation.",
+    groups_body: "Un groupe, c’est toutes les personnes de votre pays dont le profil mentionne le même thème. Comparez, demandez ce qu’on a dit aux autres, préparez une question commune — avec votre nom ou sans.",
+    groups_mine_eyebrow: "VOS GROUPES · D’APRÈS VOTRE PROFIL",
+    groups_all_eyebrow: "TOUS LES GROUPES DE VOTRE PAYS",
+    groups_no_profile: "Dites-nous ce que vous faites dans Paramètres et vos groupes apparaîtront ici. La consultation reste ouverte à tous dans tous les cas.",
+    groups_loading: "Chargement…",
+    group_members: (n) => `${n} membre${n === 1 ? "" : "s"}`,
+    group_posts: (n) => `${n} message${n === 1 ? "" : "s"}`,
+    group_from_profile: "d’après votre profil",
+    groups_privacy_note: "Les groupes affichent un nombre de membres, jamais une liste. Publier anonymement ne montre que votre thème et votre localité ; votre compte n’est jamais attaché au message, et aucun numéro de téléphone n’y est lié.",
+    back_to_groups: "← Retour aux groupes",
+    group_eyebrow: "GROUPE",
+    group_intro: (n, country) => `${n} personnes en ${country} ont ce thème dans leur profil.`,
+    group_localities: (list) => `Où elles sont : ${list}`,
+    group_members_label: "membres",
+    group_not_in_profile: "Ce thème n’est pas dans votre profil — vous pouvez quand même lire et écrire.",
+    group_posts_eyebrow: "CONVERSATION",
+    group_posts_title: "Ce que disent les personnes dans cette situation.",
+    group_post_label: "Posez une question ou partagez avec le groupe",
+    group_post_placeholder: "Quelqu’un d’autre a reçu cet avis ? Qu’est-ce qu’on vous a dit ?",
+    group_post_button: "Publier dans le groupe",
+    group_no_posts: "Aucun message pour l’instant. Lancez la conversation.",
+    group_records_eyebrow: "FICHES DE CE GROUPE",
+    group_records_title: "Ce qui est au dossier sur ce thème.",
+    group_records_body: "Chaque avis et fiche de votre zone qui concerne ce thème, du plus récent au plus ancien.",
+    group_no_records: "Aucune fiche sur ce thème dans votre zone pour l’instant.",
+    lands_on_eyebrow: "QUI D’AUTRE EST CONCERNÉ",
+    lands_on_body: (n, topic, area) => `${n} personnes de votre pays ont « ${topic} » dans leur profil. Vous n’êtes pas seul·e à devoir comprendre ceci.`,
+    lands_on_body_unknown: (topic) => `Les personnes dont le profil mentionne « ${topic} » voient aussi cette fiche en premier.`,
+    open_group_arrow: "Ouvrir le groupe →",
     nav_feedback: "Mes retours",
     sidebar_saved_records: "Fiches enregistrées",
     sidebar_all_records: (n) => `Toutes les ${n} fiches →`,
@@ -1156,10 +1242,29 @@ const STRINGS = {
     nav_settings: "Paramètres",
     settings_eyebrow: "PARAMÈTRES",
     settings_title: "Personnalisez cet espace.",
-    settings_body: "Ces préférences déterminent comment les dossiers sont triés et présentés pour vous — avant ou après votre connexion. Enregistrées uniquement dans ce navigateur.",
+    settings_body: "Vous dites qui vous êtes ; l’application montre ce qu’elle a compris, et vous corrigez. Ce profil change l’ordre de ce que vous voyez — jamais ce que vous pouvez voir. Enregistré dans ce navigateur ; connecté·e, vos thèmes suivent aussi votre compte pour que vos groupes vous suivent.",
     settings_scope_note: "Ceci s'applique à ce navigateur sur cet appareil. Si vous vous connectez, cela reste avec votre compte local ici ; sans connexion, cela s'applique quand même pour cette session.",
     settings_name_label: "Votre nom (optionnel)",
     settings_name_placeholder: "Comment devons-nous vous appeler ?",
+    settings_description_label: "Dites-nous ce que vous faites — ou pour qui vous remplissez ceci",
+    settings_description_hint: "Dans la langue de votre choix, avec vos mots. Par exemple : « Je cultive du maïs et je vends au marché le vendredi » · “I am a teacher at the primary school” · « mo n ta ẹran ni ọja ».",
+    settings_description_placeholder: "Je vends des tomates au bord de la route et j’élève trois chèvres…",
+    understand_me: "Comprendre",
+    understood_eyebrow: "CE QUE NOUS AVONS COMPRIS",
+    understood_note: "C’est notre interprétation. Retirez ou ajoutez des thèmes ci-dessous — votre correction l’emporte toujours. Rien d’autre n’est déduit, conservé ou appris de ce que vous faites sur la plateforme.",
+    show_first_eyebrow: "NOUS VOUS MONTRERONS D’ABORD",
+    remove_interest: "Retirer",
+    add_interest: "+ ajouter un thème",
+    clear_profile: "Effacer mon profil",
+    understood_by_model: "Interprété par le modèle local. Corrigez si c’est faux.",
+    understood_by_keywords: "Aucun modèle local connecté — interprétation par mots-clés. Corrigez si c’est faux.",
+    why_am_i_seeing_this: "Pourquoi je vois ceci ici ?",
+    why_interest: (topic, points, words, understood) => `Cette fiche concerne ${topic}. ${words ? `Vous nous avez dit ${words}, que nous avons compris comme « ${understood} », ` : `Votre profil indique ${understood}, `}donc ${topic} compte +${points}.`,
+    why_age: (band, points) => `Votre tranche d’âge (${band}) ajoute +${points} : cela change l’ordre, jamais ce que vous pouvez voir.`,
+    why_total: (total) => `Score : +${total}. Les fiches à 0 gardent simplement l’ordre par date.`,
+    why_fixed_weights: "Les pondérations sont une table fixe et publiée dans le code source. Rien n’est déduit dans votre dos, rien n’est appris de votre comportement.",
+    why_correct_it: "Nous l’avons déduit — corrigez-le →",
+    post_anonymously: (persona) => `Publier anonymement, en tant que « ${persona} »`,
     settings_profession_text_label: "Que faites-vous ? (dans la langue de votre choix)",
     settings_profession_text_placeholder: "ex. je vends du poisson au marché de Bè · I am a mason in Abobo · mo n ta ẹran",
     speak_profession: "Le dire au lieu de l’écrire",
@@ -1187,7 +1292,7 @@ const STRINGS = {
     stop_listening: "Arrêter",
     settings_aside_eyebrow: "CE QUE CELA CHANGE",
     settings_aside_title: "Où ces préférences apparaissent.",
-    settings_aside_body: "La profession réorganise les dossiers sur Vue d'ensemble et Dossiers pour que ce qui vous concerne apparaisse en premier. Le confort de lecture détermine si une fiche s'ouvre en texte ou propose une lecture audio. Votre nom apparaît comme une courte note « adapté pour vous » sur les fiches. La langue préférée présélectionne la traduction sur l'onglet Preuves d'une fiche.",
+    settings_aside_body: "Vos thèmes réorganisent la Vue d’ensemble et les Dossiers pour que ce qui vous concerne apparaisse en premier, et déterminent vos groupes. Chaque fiche affiche « Pourquoi je vois ceci ici ? » avec les points exacts. La tranche d’âge ajoute une petite pondération d’étape de vie. Le confort de lecture détermine si une fiche s’ouvre en texte ou se lit à voix haute ; la langue préférée présélectionne la traduction. Rien n’est déduit de votre comportement et rien de sensible n’est conservé.",
     ai_status_missing_title: "L'IA locale n'est pas connectée.",
     ai_status_missing_body: "La traduction, la lecture audio, les brouillons de retour structurés et « Expliquer une source » en ont besoin. Dans un terminal, exécutez :",
     ai_status_missing_command: "ollama serve\nCIVIC_BRIDGE_OLLAMA_MODEL=<votre-modèle> ./run_demo.sh",
@@ -1249,6 +1354,7 @@ const TOPIC_KEYWORDS = {
   employment: ["employment", "emploi", "youth", "jeunes", "training", "formation"], land: ["land", "foncier", "parcelle", "plot"], exams: ["exam", "examen"],
   tax: ["tax", "impôt", "levy", "taxe"], identity: ["identity", "identité", "id card", "carte d"], elections: ["election", "électorale", "voter"],
   meeting: ["meeting", "réunion"], services: ["services", "lighting", "éclairage", "lampadaire"],
+  livestock: ["livestock", "élevage", "bétail", "animal"], farming: ["agriculture", "farmer", "fertili", "engrais", "harvest", "récolte"],
 };
 const PROFESSION_TOPIC_WEIGHTS = {
   farmer: { water: 3, land: 3, flooding: 2, roads: 2, markets: 1, energy: 1 }, herder: { water: 3, land: 3, health: 1, roads: 1, flooding: 1 }, fisher: { water: 3, flooding: 2, markets: 2, safety: 1 },
@@ -1268,8 +1374,8 @@ const AGE_TOPIC_WEIGHTS = {
 };
 
 const TOPIC_NAMES = {
-  en: { water: "water", roads: "roads", health: "health", education: "education", energy: "electricity", works: "public works", markets: "markets", registry: "civil registry", safety: "safety", permits: "permits", transport: "transport", sanitation: "sanitation", budget: "budget", flooding: "flooding", employment: "jobs & training", land: "land", exams: "exams", tax: "taxes & fees", identity: "ID cards", elections: "elections", meeting: "public meetings", services: "municipal services" },
-  fr: { water: "eau", roads: "routes", health: "santé", education: "éducation", energy: "électricité", works: "travaux", markets: "marchés", registry: "état civil", safety: "sécurité", permits: "permis", transport: "transport", sanitation: "assainissement", budget: "budget", flooding: "inondations", employment: "emploi & formation", land: "foncier", exams: "examens", tax: "impôts & taxes", identity: "pièces d’identité", elections: "élections", meeting: "réunions publiques", services: "services municipaux" },
+  en: { water: "water access", roads: "roads", health: "health services", education: "schools", energy: "electricity", works: "public works", markets: "market trade", registry: "civil registry", safety: "safety", permits: "permits & licences", transport: "transport", sanitation: "sanitation", budget: "public budget", flooding: "flooding", employment: "jobs & training", land: "land", exams: "exams", tax: "taxes & fees", identity: "ID cards", elections: "elections", meeting: "public meetings", services: "municipal services", farming: "farming", livestock: "livestock & animal health" },
+  fr: { water: "accès à l’eau", roads: "routes", health: "services de santé", education: "écoles", energy: "électricité", works: "travaux publics", markets: "commerce au marché", registry: "état civil", safety: "sécurité", permits: "permis et licences", transport: "transport", sanitation: "assainissement", budget: "budget public", flooding: "inondations", employment: "emploi et formation", land: "foncier", exams: "examens", tax: "impôts et taxes", identity: "pièces d’identité", elections: "élections", meeting: "réunions publiques", services: "services municipaux", farming: "agriculture", livestock: "élevage et santé animale" },
 };
 function topicNames(weights) {
   const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
@@ -1282,23 +1388,42 @@ function issueTopic(issue) {
   return "";
 }
 
-// A profile is either a free-text description interpreted by the local model
-// (topicWeights + a label in both languages) or a pick from the list.
-const hasProfession = () => Boolean(state.preferences.topicWeights || state.preferences.profession);
+// The profile is a list of interests (controlled vocabulary, model-proposed,
+// user-edited) plus an age band. Ranking is a fixed, published rule: the
+// first two interests weigh 3, the next two 2, the rest 1; the age band
+// adds its own small table. Nothing is learned from behaviour.
+const INTEREST_POSITION_WEIGHTS = [3, 3, 2, 2, 1, 1];
+const hasProfession = () => (state.preferences.interests || []).length > 0;
+function interestWeight(topic) {
+  const index = (state.preferences.interests || []).indexOf(topic);
+  return index < 0 ? 0 : INTEREST_POSITION_WEIGHTS[Math.min(index, INTEREST_POSITION_WEIGHTS.length - 1)];
+}
 function professionLabel() {
-  if (state.preferences.topicWeights && state.preferences.professionLabel) return state.preferences.professionLabel[uiLang()] || state.preferences.professionLabel.en || "";
-  if (state.preferences.profession) return t(PROFESSIONS.find((item) => item.id === state.preferences.profession)?.key || "profession_other");
-  return "";
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  return (state.preferences.interests || []).slice(0, 2).map((topic) => names[topic] || topic).join(" · ");
 }
 function professionWeight(issue) {
   const topic = issueTopic(typeof issue === "string" ? { id: issue } : issue);
   if (!topic) return 0;
-  const table = state.preferences.topicWeights || PROFESSION_TOPIC_WEIGHTS[state.preferences.profession] || {};
-  return (table[topic] || 0) + ((AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0);
+  return interestWeight(topic) + ((AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0);
+}
+// "Why am I seeing this?" — the whole chain in the person's own terms.
+function rankingExplanation(issue) {
+  const topic = issueTopic(issue);
+  if (!topic) return "";
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  const fromInterest = interestWeight(topic);
+  const fromAge = (AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0;
+  if (!fromInterest && !fromAge) return "";
+  const parts = [];
+  const understood = (state.preferences.understood || professionLabel()).replace(/^(we understood|nous avons compris)\s*:\s*/i, "");
+  if (fromInterest) parts.push(t("why_interest", names[topic] || topic, fromInterest, state.preferences.description ? `“${state.preferences.description}”` : "", understood));
+  if (fromAge) parts.push(t("why_age", t(AGE_RANGES.find((item) => item.id === state.preferences.age)?.key || "age_18_29"), fromAge));
+  return `<details class="why-panel"><summary>${t("why_am_i_seeing_this")}</summary><div><p>${parts.join(" ")}</p><p class="why-total">${t("why_total", fromInterest + fromAge)}</p><p class="why-fixed">${t("why_fixed_weights")}</p><button class="text-btn" data-route="settings">${t("why_correct_it")}</button></div></details>`;
 }
 
 function rankForProfile(issues) {
-  if (!hasProfession() && !state.preferences.age) return issues;
+  // Profile changes order only, never access: every record stays in the list.
   return issues
     .map((issue, index) => ({ issue, index, score: professionWeight(issue) }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
@@ -1363,6 +1488,16 @@ function responsibleOffice(record) {
   return { id: "", name: target || t("request_responsible_office"), office: target };
 }
 
+// The public face of an anonymous post: an interest and a locality, never a
+// name or account. "A market trader in Lomé" / "Un·e résident·e de Lomé".
+function anonymousPersona() {
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  const first = (state.preferences.interests || [])[0];
+  const where = state.dashboard.area || state.dashboard.country || "";
+  if (uiLang() === "fr") return first ? `Un·e résident·e de ${where} (${names[first]})` : `Un·e résident·e de ${where}`;
+  return first ? `A resident of ${where} (${names[first]})` : `A resident of ${where}`;
+}
+
 function representativeName(rep) {
   return representativeProfile(rep).person;
 }
@@ -1399,16 +1534,31 @@ function preferencesKey() {
 }
 
 function loadPreferences() {
+  const empty = { name: "", description: "", interests: [], understood: "", age: "", mode: "", language: "" };
   try {
-    const saved = JSON.parse(localStorage.getItem(preferencesKey()) || "null");
-    state.preferences = { name: "", profession: "", age: "", mode: "", language: "", ...(saved || {}) };
+    const saved = JSON.parse(localStorage.getItem(preferencesKey()) || "null") || {};
+    // Older profiles stored a profession id (or model weights); carry them
+    // into the interests list so nothing saved is lost.
+    if (!Array.isArray(saved.interests)) saved.interests = [];
+    if (!saved.interests.length && saved.topicWeights) saved.interests = Object.entries(saved.topicWeights).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([topic]) => topic);
+    if (!saved.interests.length && saved.profession) saved.interests = Object.entries(PROFESSION_TOPIC_WEIGHTS[saved.profession] || {}).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([topic]) => topic);
+    if (!saved.description && saved.professionText) saved.description = saved.professionText;
+    if (!saved.understood && saved.professionLabel) saved.understood = saved.professionLabel[uiLang()] || saved.professionLabel.en || "";
+    delete saved.profession; delete saved.topicWeights; delete saved.professionText; delete saved.professionLabel;
+    state.preferences = { ...empty, ...saved };
   } catch (error) {
-    state.preferences = { name: "", profession: "", age: "", mode: "", language: "" };
+    state.preferences = { ...empty };
   }
+}
+
+function syncInterests() {
+  if (!state.user?.token) return;
+  fetch("/api/profile/interests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), interests: state.preferences.interests || [], country: state.dashboard.country, locality: state.dashboard.area }) }).catch(() => {});
 }
 
 function persistPreferences() {
   try { localStorage.setItem(preferencesKey(), JSON.stringify(state.preferences)); } catch (error) { /* optional */ }
+  syncInterests();
 }
 
 function applyAreaContext() {
@@ -1437,6 +1587,7 @@ function applyAreaContext() {
     state.news.unshift({ id: notice.id, headline: notice.title || notice.headline, type: notice.category || "Public notice", date: notice.date || "Just published", status: "Published locally", locality: notice.locality, source: `${notice.office || "Public Information Desk"} · local publication`, summary: notice.summary, languages: state.dashboard.languages || ["English"] });
     state.issues.unshift({ id: notice.id, title: record.title, type: record.category, locality: notice.locality, status: "New public update", priority: "Community follow-up", last_update: notice.date || "Today", source: record.source_label, summary: notice.summary });
   });
+  loadGroups();
   // Area tiles reflect what is actually on the platform for this country.
   const isFrench = uiLang() === "fr";
   if (state.dashboard.metrics[0]) state.dashboard.metrics[0] = { ...state.dashboard.metrics[0], value: String(state.issues.length), detail: isFrench ? `${relevantNotices.length} avis publiés · 5 fiches de référence` : `${relevantNotices.length} published notices · 5 reference records` };
@@ -1581,7 +1732,7 @@ function setUser(user, created = false) {
     state.followedRepresentatives = new Set(saved || state.representatives.filter((rep) => rep.followed).map((rep) => rep.id));
   } catch (error) { /* use defaults */ }
   loadPreferences();
-  if (!hasProfession() && !state.preferences.name && (guestPreferences.profession || guestPreferences.topicWeights || guestPreferences.name)) {
+  if (!hasProfession() && !state.preferences.name && ((guestPreferences.interests || []).length || guestPreferences.name)) {
     state.preferences = { ...state.preferences, ...guestPreferences };
     persistPreferences();
   }
@@ -1659,7 +1810,7 @@ async function loadCommunity(recordId) {
 function renderCommunityPanel(record) {
   const community = state.community[record.id] || { comments: [], votes: { helpful: 0, "needs-clarity": 0 }, selected_vote: [] };
   const selected = community.selected_vote || [];
-  return `<section class="panel community-panel"><div class="panel-heading"><div><span class="eyebrow">${t("community_pulse_eyebrow")}</span><h2>${t("community_pulse_title")}</h2></div><span class="live-pill"><i></i> ${t("community_signal")}</span></div><p class="panel-intro">${t("community_pulse_intro")}</p><div class="vote-row"><button class="vote-btn ${selected.includes("helpful") ? "selected" : ""}" data-vote="helpful"><span class="vote-icon">✓</span><span class="vote-text"><strong>${community.votes?.helpful || 0}</strong><small>${t("vote_helpful")}</small></span></button><button class="vote-btn needs-clarity ${selected.includes("needs-clarity") ? "selected" : ""}" data-vote="needs-clarity"><span class="vote-icon">!</span><span class="vote-text"><strong>${community.votes?.["needs-clarity"] || 0}</strong><small>${t("vote_needs_clarity")}</small></span></button></div><div class="comment-form"><label class="form-label" for="record-comment">${t("add_public_comment")}</label><textarea id="record-comment" class="feedback-textarea" placeholder="${t("comment_placeholder")}"></textarea><div class="button-row"><button class="primary-btn" id="submit-record-comment">${t("add_comment")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div><div class="comment-list"><span class="eyebrow">${t("community_comments_eyebrow")}</span>${community.comments?.length ? community.comments.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<p class="empty-comments">${t("community_comments_empty")}</p>`}</div></section>`;
+  return `<section class="panel community-panel"><div class="panel-heading"><div><span class="eyebrow">${t("community_pulse_eyebrow")}</span><h2>${t("community_pulse_title")}</h2></div><span class="live-pill"><i></i> ${t("community_signal")}</span></div><p class="panel-intro">${t("community_pulse_intro")}</p><div class="vote-row"><button class="vote-btn ${selected.includes("helpful") ? "selected" : ""}" data-vote="helpful"><span class="vote-icon">✓</span><span class="vote-text"><strong>${community.votes?.helpful || 0}</strong><small>${t("vote_helpful")}</small></span></button><button class="vote-btn needs-clarity ${selected.includes("needs-clarity") ? "selected" : ""}" data-vote="needs-clarity"><span class="vote-icon">!</span><span class="vote-text"><strong>${community.votes?.["needs-clarity"] || 0}</strong><small>${t("vote_needs_clarity")}</small></span></button></div><div class="comment-form"><label class="form-label" for="record-comment">${t("add_public_comment")}</label><textarea id="record-comment" class="feedback-textarea" placeholder="${t("comment_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="comment-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-record-comment">${t("add_comment")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div><div class="comment-list"><span class="eyebrow">${t("community_comments_eyebrow")}</span>${community.comments?.length ? community.comments.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<p class="empty-comments">${t("community_comments_empty")}</p>`}</div></section>`;
 }
 
 function persistLocation() {
@@ -1891,7 +2042,7 @@ function renderHome() {
   ] : baseMetrics;
   const lead = hasArea ? visibleIssues[0] : null;
   const rest = hasArea ? visibleIssues.slice(1, 3) : [];
-  const byline = (issue) => `<span>${esc(issue.source)}</span><span>${esc(issue.locality)}</span><span>${t("updated_label", esc(issue.last_update))}</span>${professionWeight(issue) > 0 ? `<span class="tag status">${t("matches_profile")}</span>` : ""}`;
+  const byline = (issue) => `<span>${esc(issue.source)}</span><span>${esc(issue.locality)}</span><span>${t("updated_label", esc(issue.last_update))}</span>${professionWeight(issue) > 0 ? `<span class="tag status">${t("matches_profile")}</span>` : ""}${rankingExplanation(issue)}`;
   app.innerHTML = `
     <section class="masthead">
       <div class="masthead-line"><span>${hasArea ? esc(state.dashboard.last_sync || "") : t("home_eyebrow")}</span>${hasArea ? `<span class="masthead-dot">·</span><span>${esc(area)}, ${esc(country)}</span>` : ""}</div>
@@ -1941,6 +2092,77 @@ function renderRecordCards(records) {
   document.querySelectorAll("#record-grid [data-record]").forEach((button) => button.addEventListener("click", () => setRoute("record", button.dataset.record)));
 }
 
+async function loadGroups() {
+  if (!state.dashboard.country) return;
+  try {
+    const response = await fetch(`/api/groups?country=${encodeURIComponent(state.dashboard.country)}`, { cache: "no-store" });
+    if (response.ok) { state.groups = (await response.json()).groups || []; if (state.view === "groups") { renderGroups(true); } }
+  } catch (error) { /* offline */ }
+}
+
+function groupCard(group) {
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  const mine = (state.preferences.interests || []).includes(group.topic);
+  return `<button class="group-card ${mine ? "mine" : ""}" data-group="${group.topic}"><strong>${esc(names[group.topic] || group.topic)}</strong><span>${t("group_members", group.members)} · ${t("group_posts", group.post_count ?? (group.posts || []).length)}</span>${mine ? `<em>${t("group_from_profile")}</em>` : ""}</button>`;
+}
+
+function renderGroups(fromLoad = false) {
+  if (!state.dashboard.area || !state.dashboard.country) return renderAreaRequired();
+  if (!fromLoad) loadGroups();
+  const interests = state.preferences.interests || [];
+  const mine = state.groups.filter((group) => interests.includes(group.topic));
+  const others = state.groups.filter((group) => !interests.includes(group.topic) && group.members > 0);
+  app.innerHTML = `
+    <section class="page-head"><div><span class="eyebrow">${t("groups_eyebrow")}</span><h1>${t("groups_title")}</h1><p>${t("groups_body")}</p></div><div class="head-note"><strong>${esc(state.dashboard.area)}</strong><span>${esc(state.dashboard.country)}</span></div></section>
+    ${interests.length ? `<span class="eyebrow">${t("groups_mine_eyebrow")}</span><section class="group-grid">${mine.map(groupCard).join("") || `<p class="empty-state">${t("groups_loading")}</p>`}</section>` : `<section class="panel"><span class="eyebrow">${t("groups_mine_eyebrow")}</span><p class="panel-intro">${t("groups_no_profile")}</p><button class="primary-btn" data-route="settings">${t("nav_settings")}</button></section>`}
+    <span class="eyebrow" style="display:block;margin-top:22px">${t("groups_all_eyebrow")}</span>
+    <section class="group-grid">${others.map(groupCard).join("") || `<p class="empty-state">${t("groups_loading")}</p>`}</section>
+    <p class="disclaimer" style="margin-top:18px">${t("groups_privacy_note")}</p>`;
+  document.querySelectorAll("[data-group]").forEach((button) => button.addEventListener("click", () => { state.groupTopic = button.dataset.group; state.group = null; setRoute("group"); }));
+  bindAppActions();
+}
+
+async function renderGroupDetail() {
+  if (!state.dashboard.country || !state.groupTopic) return setRoute("groups");
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  const topic = state.groupTopic;
+  if (!state.group || state.group.topic !== topic) {
+    app.innerHTML = `<button class="breadcrumb" data-route="groups">${t("back_to_groups")}</button><p class="empty-state">${t("groups_loading")}</p>`;
+    bindAppActions();
+    try { const response = await fetch(`/api/groups/${encodeURIComponent(topic)}?country=${encodeURIComponent(state.dashboard.country)}`, { cache: "no-store" }); if (response.ok) state.group = await response.json(); } catch (error) { /* offline */ }
+    if (!state.group || state.view !== "group") return;
+  }
+  const group = state.group;
+  const related = state.issues.filter((issue) => issueTopic(issue) === topic).slice(0, 6);
+  const mine = (state.preferences.interests || []).includes(topic);
+  app.innerHTML = `
+    <button class="breadcrumb" data-route="groups">${t("back_to_groups")}</button>
+    <section class="page-head"><div><span class="eyebrow">${t("group_eyebrow")}</span><h1>${esc(names[topic] || topic)} · ${esc(state.dashboard.area)}</h1><p>${t("group_intro", group.members, esc(state.dashboard.country))}</p>${group.localities.length ? `<p class="field-hint">${t("group_localities", esc(group.localities.join(" · ")))}</p>` : ""}</div><div class="head-note"><strong>${group.members}</strong><span>${t("group_members_label")}</span></div></section>
+    ${mine ? "" : `<div class="addressed-to">${t("group_not_in_profile")} <button class="text-btn" data-route="settings">${t("why_correct_it")}</button></div>`}
+    <section class="section-grid rep-detail-grid">
+      <article class="panel"><span class="eyebrow">${t("group_posts_eyebrow")}</span><h2>${t("group_posts_title")}</h2>
+        <div class="comment-form"><label class="form-label" for="group-message">${t("group_post_label")}</label><textarea id="group-message" class="feedback-textarea" placeholder="${t("group_post_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="group-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-group-post">${t("group_post_button")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div>
+        <div class="comment-list">${group.posts.length ? group.posts.map((item) => `<article class="comment-item"><div class="comment-item-top"><strong>${esc(item.user_label)}</strong><small>${esc(formatActivityDate(item.created_at))}</small></div><p>${esc(item.message)}</p></article>`).join("") : `<div class="empty-state">${t("group_no_posts")}</div>`}</div>
+      </article>
+      <aside class="panel"><span class="eyebrow">${t("group_records_eyebrow")}</span><h2>${t("group_records_title")}</h2><p class="panel-intro">${t("group_records_body")}</p>
+        ${related.length ? related.map((issue) => `<button class="watch-row" data-record="${esc(issue.id)}"><span><strong>${esc(issue.title)}</strong><small>${esc(issue.type)} · ${esc(issue.last_update)}</small></span><span class="watch-arrow">↗</span></button>`).join("") : `<div class="empty-state">${t("group_no_records")}</div>`}
+        <p class="disclaimer" style="margin-top:14px">${t("groups_privacy_note")}</p>
+      </aside>
+    </section>`;
+  bindAppActions();
+  const submit = document.querySelector("#submit-group-post");
+  if (submit) submit.addEventListener("click", () => requireUser(async () => {
+    const message = document.querySelector("#group-message").value.trim();
+    if (!message) return showToast(t("toast_comment_required"));
+    const response = await fetch(`/api/groups/${encodeURIComponent(topic)}/posts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), country: state.dashboard.country, message, anonymous: Boolean(document.querySelector("#group-anonymous")?.checked), persona: anonymousPersona() }) });
+    const data = await response.json();
+    if (!response.ok) return showToast(data.error || t("toast_comment_failed"));
+    state.group.posts.unshift(data);
+    renderGroupDetail();
+    showToast(t("toast_comment_added"));
+  }));
+}
+
 function renderAreaRequired() {
   app.innerHTML = `<section class="empty-state setup-state"><div class="empty-icon">⌖</div><h2>${t("choose_area_first_title")}</h2><p>${t("choose_area_first_body")}</p><button class="primary-btn" data-route="locations">${t("choose_location")}</button></section>`;
 }
@@ -1966,7 +2188,7 @@ function renderIssues() {
   app.innerHTML = `
     <section class="page-head compact-head"><div><span class="eyebrow">${t("issue_tracker_eyebrow")}</span><h1>${t("issue_tracker_title")}</h1><p>${t("issue_tracker_body")}</p></div><div class="head-note"><strong>${t("issues_near", state.issues.length, esc(state.dashboard.area || ""))}</strong><span>${t("source_labelled_records")}</span></div></section>
     <div class="filter-row issue-filters">${filters.map((filter) => `<button class="filter-chip ${state.issueFilter === filter ? "selected" : ""}" data-issue-filter="${esc(filter)}">${esc(filterLabels[filter])}</button>`).join("")}</div>
-    <section class="issue-list">${visible.map((issue) => { const hasRecord = state.records.some((record) => record.id === issue.id); return `<article class="issue-list-row"><div class="issue-list-main"><span class="case-kicker">${esc(issue.type)} · ${esc(issue.locality)}</span><h2>${esc(issue.title)}</h2><p>${esc(issue.summary)}</p><div class="record-meta"><span class="tag ${issue.status === "Illustrative fixture" ? "open" : "status"}">${esc(statusLabel(issue.status))}</span><span class="tag">${esc(issue.priority)}</span><span class="tag">${esc(t("updated_label", issue.last_update))}</span>${professionWeight(issue) > 0 ? `<span class="tag status">${t("matches_profile")}</span>` : ""}</div></div><div class="issue-list-side"><span class="issue-source">${esc(issue.source)}</span>${hasRecord ? `<button class="secondary-btn" data-record="${esc(issue.id)}">${t("open_evidence_arrow")}</button>` : `<button class="secondary-btn" data-action="issue-note">${t("view_source_note_arrow")}</button>`}</div></article>`; }).join("")}</section>
+    <section class="issue-list">${visible.map((issue) => { const hasRecord = state.records.some((record) => record.id === issue.id); return `<article class="issue-list-row"><div class="issue-list-main"><span class="case-kicker">${esc(issue.type)} · ${esc(issue.locality)}</span><h2>${esc(issue.title)}</h2><p>${esc(issue.summary)}</p><div class="record-meta"><span class="tag ${issue.status === "Illustrative fixture" ? "open" : "status"}">${esc(statusLabel(issue.status))}</span><span class="tag">${esc(issue.priority)}</span><span class="tag">${esc(t("updated_label", issue.last_update))}</span>${professionWeight(issue) > 0 ? `<span class="tag status">${t("matches_profile")}</span>` : ""}</div>${rankingExplanation(issue)}</div><div class="issue-list-side"><span class="issue-source">${esc(issue.source)}</span>${hasRecord ? `<button class="secondary-btn" data-record="${esc(issue.id)}">${t("open_evidence_arrow")}</button>` : `<button class="secondary-btn" data-action="issue-note">${t("view_source_note_arrow")}</button>`}</div></article>`; }).join("")}</section>
   `;
   wireIssueFilters();
 }
@@ -2184,6 +2406,7 @@ function wireRecordNavigation(record) {
     if (field) { field.focus(); field.scrollIntoView({ block: "center", behavior: "smooth" }); }
   }));
   document.querySelectorAll("#app .addressed-box [data-rep-detail]").forEach((button) => button.addEventListener("click", () => { state.repId = button.dataset.repDetail; setRoute("representative-detail"); }));
+  document.querySelectorAll("#app [data-open-group]").forEach((button) => button.addEventListener("click", () => { state.groupTopic = button.dataset.openGroup; state.group = null; setRoute("group"); }));
   bindRecordActions(record);
   if (state.tab === "overview") applyRecordPreferences(record);
 }
@@ -2212,7 +2435,7 @@ function renderOverview(record) {
       </article>
       <aside class="panel"><span class="eyebrow">${t("source_record_eyebrow")}</span>${record.evidence.map((item) => `<div class="source-card ${item.kind === "open" ? "open" : ""}"><div class="source-top"><span>${esc(item.label)}</span><span>${item.kind === "open" ? t("evidence_open_question") : record.provenance_status === "verified" ? t("evidence_verified") : t("evidence_illustrative")}</span></div><blockquote>“${esc(item.quote)}”</blockquote><footer>${esc(record.source_label)} · ${esc(item.page)}</footer></div>`).join("")}<p class="disclaimer">${esc(record.provenance_note || t("record_available_review"))}</p></aside>
     </div>
-    <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><p class="addressed-to">${t("addressed_to", esc(responsibleOffice(record).name))}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button></aside></div>
+    <div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("different_priorities_eyebrow")}</span><h2>${t("different_priorities_title")}</h2><p class="panel-intro">${t("different_priorities_body")}</p>${[...record.perspectives, ...(state.community[record.id]?.perspectives || [])].map((item, index) => `<div class="perspective-card"><div class="perspective-mark">${index + 1}</div><div><h3>${esc(item.label)}</h3><p>${esc(item.body)}</p>${item.submitted ? `<small class="perspective-submitted">${esc(t("submitted_by", item.user_label))}</small>` : ""}</div></div>`).join("")}<div class="comment-form" style="margin-top:14px"><label class="form-label" for="perspective-label">${t("add_perspective_label")}</label><input id="perspective-label" class="feedback-select" placeholder="${t("perspective_title_placeholder")}" /><textarea id="perspective-body" class="feedback-textarea" style="margin-top:10px" placeholder="${t("perspective_body_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="perspective-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))}</label><div class="button-row"><button class="primary-btn" id="submit-perspective">${t("submit_perspective")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div></article><aside class="panel"><span class="eyebrow">${t("next_step_eyebrow")}</span><h2>${t("next_step_title")}</h2><p class="panel-intro">${t("next_step_body")}</p><p class="addressed-to">${t("addressed_to", esc(responsibleOffice(record).name))}</p><button class="primary-btn" data-tab="feedback">${t("draft_feedback_arrow")}</button>${(() => { const topic = issueTopic(record); const group = state.groups.find((item) => item.topic === topic); const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en; return topic ? `<div class="lands-on"><span class="eyebrow">${t("lands_on_eyebrow")}</span><p>${group ? t("lands_on_body", group.members, esc(names[topic] || topic), esc(state.dashboard.area)) : t("lands_on_body_unknown", esc(names[topic] || topic))}</p><button class="text-btn" data-open-group="${topic}">${t("open_group_arrow")}</button></div>` : ""; })()}</aside></div>
     ${renderCommunityPanel(record)}
   `;
 }
@@ -2251,6 +2474,20 @@ const AGE_RANGES = [
   { id: "60plus", key: "age_60plus" },
 ];
 
+function renderUnderstoodCard() {
+  const p = state.preferences;
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  if (!p.interests.length && !p.understood) return "";
+  const options = Object.keys(names).filter((topic) => !p.interests.includes(topic)).map((topic) => `<option value="${topic}">${esc(names[topic])}</option>`).join("");
+  return `<div class="understood-card"><span class="eyebrow">${t("understood_eyebrow")}</span>
+    ${p.understood ? `<p class="understood-sentence">${esc(p.understood)}</p>` : ""}
+    <p class="field-hint">${t("understood_note")}</p>
+    <span class="eyebrow">${t("show_first_eyebrow")}</span>
+    <div class="interest-chips">${p.interests.map((topic, index) => `<span class="interest-chip"><span>${esc(names[topic] || topic)}</span><em>+${INTEREST_POSITION_WEIGHTS[Math.min(index, INTEREST_POSITION_WEIGHTS.length - 1)]}</em><button type="button" data-remove-interest="${topic}" aria-label="${t("remove_interest")}">×</button></span>`).join("")}
+      <select id="add-interest" class="feedback-select chip-add"><option value="">${t("add_interest")}</option>${options}</select></div>
+    <div class="button-row"><button type="button" class="text-btn" id="clear-profile">${t("clear_profile")}</button></div></div>`;
+}
+
 function renderSettings() {
   const languages = state.dashboard.languages || [];
   const p = state.preferences;
@@ -2260,11 +2497,11 @@ function renderSettings() {
       <article class="panel">
         <label class="form-label" for="pref-name">${t("settings_name_label")}</label>
         <input id="pref-name" class="feedback-select" placeholder="${t("settings_name_placeholder")}" value="${esc(p.name || "")}" />
-        <label class="form-label" for="pref-profession-text">${t("settings_profession_text_label")}</label>
-        <div class="profession-row"><input id="pref-profession-text" class="feedback-select" maxlength="200" placeholder="${t("settings_profession_text_placeholder")}" value="${esc(p.professionText || "")}" /><button type="button" class="secondary-btn mic-btn" id="pref-profession-mic" aria-label="${t("speak_profession")}" title="${t("speak_profession")}">🎤</button></div>
-        <p class="profile-understood" id="profession-understood">${p.topicWeights ? t("profession_understood", esc(professionLabel()), esc(topicNames(p.topicWeights))) : ""}</p>
-        <label class="form-label" for="pref-profession">${t("settings_profession_label")}</label>
-        <select id="pref-profession" class="feedback-select"><option value="">${t("settings_profession_placeholder")}</option>${PROFESSION_GROUPS.map((group) => `<optgroup label="${esc(t(group.key))}">${group.ids.map((id) => `<option value="${id}" ${p.profession === id ? "selected" : ""}>${esc(t(`profession_${id}`))}</option>`).join("")}</optgroup>`).join("")}</select>
+        <label class="form-label" for="pref-description">${t("settings_description_label")}</label>
+        <p class="field-hint">${t("settings_description_hint")}</p>
+        <div class="profession-row"><textarea id="pref-description" class="feedback-textarea" maxlength="600" placeholder="${t("settings_description_placeholder")}">${esc(p.description || "")}</textarea><button type="button" class="secondary-btn mic-btn" id="pref-description-mic" aria-label="${t("speak_profession")}" title="${t("speak_profession")}">🎤</button></div>
+        <div class="button-row"><button type="button" class="primary-btn" id="pref-interpret">${t("understand_me")}</button><span class="field-hint" id="pref-interpret-status"></span></div>
+        <div id="understood-card">${renderUnderstoodCard()}</div>
         <label class="form-label" for="pref-age">${t("settings_age_label")}</label>
         <select id="pref-age" class="feedback-select"><option value="">${t("settings_age_placeholder")}</option>${AGE_RANGES.map((item) => `<option value="${item.id}" ${p.age === item.id ? "selected" : ""}>${esc(t(item.key))}</option>`).join("")}</select>
         <label class="form-label" for="pref-mode">${t("settings_mode_label")}</label>
@@ -2290,25 +2527,34 @@ function wireSettingsForm() {
   };
   const name = document.querySelector("#pref-name");
   if (name) name.addEventListener("change", () => save({ name: name.value.trim() }));
-  const profession = document.querySelector("#pref-profession");
-  if (profession) profession.addEventListener("change", () => { save({ profession: profession.value, professionText: "", professionLabel: null, topicWeights: null }); const understood = document.querySelector("#profession-understood"); if (understood) understood.textContent = ""; });
-  const professionText = document.querySelector("#pref-profession-text");
-  const understood = document.querySelector("#profession-understood");
+  const description = document.querySelector("#pref-description");
+  const status = document.querySelector("#pref-interpret-status");
+  const refreshCard = () => { const card = document.querySelector("#understood-card"); if (card) { card.innerHTML = renderUnderstoodCard(); wireUnderstoodCard(); } };
   const interpret = async () => {
-    const text = professionText.value.trim();
-    if (!text) { save({ professionText: "", professionLabel: null, topicWeights: null }); understood.textContent = ""; return; }
-    understood.textContent = t("profession_interpreting");
+    const text = description.value.trim();
+    if (!text) { save({ description: "", interests: [], understood: "" }); refreshCard(); return; }
+    status.textContent = t("profession_interpreting");
     try {
-      const response = await fetch("/api/profile/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language: uiLang() === "fr" ? "Français" : "English" }) });
+      const response = await fetch("/api/profile/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: text, language: uiLang() === "fr" ? "Français" : "English" }) });
       const data = await response.json();
-      if (!response.ok) { understood.textContent = t("profession_ai_unavailable"); return; }
-      save({ professionText: text, professionLabel: { en: data.label_en, fr: data.label_fr }, topicWeights: data.topics, profession: "" });
-      if (profession) profession.value = "";
-      understood.textContent = t("profession_understood", professionLabel(), topicNames(data.topics));
-    } catch (error) { understood.textContent = t("profession_ai_unavailable"); }
+      if (!response.ok) { status.textContent = data.error || t("profession_ai_unavailable"); return; }
+      save({ description: text, interests: data.interests, understood: data.understood });
+      status.textContent = data.engine === "ollama" ? t("understood_by_model") : t("understood_by_keywords");
+      refreshCard();
+    } catch (error) { status.textContent = t("profession_ai_unavailable"); }
   };
-  if (professionText) professionText.addEventListener("change", interpret);
-  const mic = document.querySelector("#pref-profession-mic");
+  const wireUnderstoodCard = () => {
+    document.querySelectorAll("[data-remove-interest]").forEach((button) => button.addEventListener("click", () => { save({ interests: state.preferences.interests.filter((topic) => topic !== button.dataset.removeInterest) }); refreshCard(); }));
+    const add = document.querySelector("#add-interest");
+    if (add) add.addEventListener("change", () => { if (add.value) { save({ interests: [...state.preferences.interests, add.value] }); refreshCard(); } });
+    const clear = document.querySelector("#clear-profile");
+    if (clear) clear.addEventListener("click", () => { save({ description: "", interests: [], understood: "" }); if (description) description.value = ""; refreshCard(); });
+  };
+  wireUnderstoodCard();
+  const interpretButton = document.querySelector("#pref-interpret");
+  if (interpretButton) interpretButton.addEventListener("click", interpret);
+  if (description) description.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); interpret(); } });
+  const mic = document.querySelector("#pref-description-mic");
   if (mic) mic.addEventListener("click", () => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) return showToast(t("avatar_unsupported"));
@@ -2316,7 +2562,7 @@ function wireSettingsForm() {
     recognizer.lang = speechLangCode(state.preferences.language || (state.dashboard.languages || ["English"])[0]);
     recognizer.interimResults = false;
     mic.classList.add("listening");
-    recognizer.onresult = (event) => { professionText.value = event.results[0][0].transcript; interpret(); };
+    recognizer.onresult = (event) => { description.value = event.results[0][0].transcript; interpret(); };
     recognizer.onerror = (event) => { if (event.error === "not-allowed" || event.error === "service-not-allowed") showToast(t("avatar_mic_denied")); };
     recognizer.onend = () => mic.classList.remove("listening");
     try { recognizer.start(); } catch (error) { mic.classList.remove("listening"); }
@@ -2624,7 +2870,7 @@ function bindRecordActions(record) {
     const field = document.querySelector("#record-comment");
     const message = field.value.trim();
     if (!message) return showToast(t("toast_comment_required"));
-    const response = await fetch(`/api/records/${encodeURIComponent(record.id)}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), country: state.dashboard.country, message }) });
+    const response = await fetch(`/api/records/${encodeURIComponent(record.id)}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), country: state.dashboard.country, message, anonymous: Boolean(document.querySelector("#comment-anonymous")?.checked), persona: anonymousPersona() }) });
     const data = await response.json();
     if (!response.ok) return showToast(data.error || t("toast_comment_failed"));
     state.community[record.id] = { ...(state.community[record.id] || {}), comments: [data, ...(state.community[record.id]?.comments || [])], votes: state.community[record.id]?.votes || { helpful: 0, "needs-clarity": 0 } };
@@ -2636,7 +2882,7 @@ function bindRecordActions(record) {
     const label = document.querySelector("#perspective-label").value.trim();
     const body = document.querySelector("#perspective-body").value.trim();
     if (!label || !body) return showToast(t("toast_perspective_required"));
-    const response = await fetch(`/api/records/${encodeURIComponent(record.id)}/perspectives`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), country: state.dashboard.country, label, body }) });
+    const response = await fetch(`/api/records/${encodeURIComponent(record.id)}/perspectives`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: authToken(), country: state.dashboard.country, label, body, anonymous: Boolean(document.querySelector("#perspective-anonymous")?.checked), persona: anonymousPersona() }) });
     const data = await response.json();
     if (!response.ok) return showToast(data.error || t("toast_perspective_required"));
     state.community[record.id] = { ...(state.community[record.id] || {}), perspectives: [...(state.community[record.id]?.perspectives || []), data] };
@@ -2691,6 +2937,8 @@ function render() {
   else if (state.view === "locations") renderLocations();
   else if (state.view === "representative-detail") renderRepresentativeDetail();
   else if (state.view === "news") renderNews();
+  else if (state.view === "groups") renderGroups();
+  else if (state.view === "group") renderGroupDetail();
   else if (state.view === "channels") renderChannelsHub();
   else if (state.view === "explain") renderExplain();
   else if (state.view === "settings") renderSettings();
@@ -2722,8 +2970,8 @@ async function boot() {
       </section>`;
     return;
   }
-  const response = await fetch("/api/bootstrap");
-  const data = await response.json();
+  let data;
+  try { data = await (await fetch("/api/bootstrap")).json(); } catch (error) { return; /* page navigated away or API not up yet */ }
   state.productName = data.product_name;
   state.records = data.records;
   state.issues = data.issues || [];

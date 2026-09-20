@@ -635,6 +635,10 @@ PERSPECTIVES: dict[str, list[dict[str, Any]]] = {}
 PERSPECTIVES_LOCK = threading.Lock()
 PUBLISHED_NOTICES: list[dict[str, Any]] = []
 PUBLISHED_NOTICES_LOCK = threading.Lock()
+# Groups are not stored: a group *is* "everyone in this country whose profile
+# lists this topic". Only its posts are stored, keyed by country|topic.
+GROUP_POSTS: dict[str, list[dict[str, Any]]] = {}
+GROUP_POSTS_LOCK = threading.Lock()
 
 
 # --- Representative activity statistics -----------------------------------
@@ -843,6 +847,26 @@ def demo_user(token: str) -> dict[str, str] | None:
     return public_user(user) if user else None
 
 
+def group_summary(country: str, topic: str) -> dict[str, Any]:
+    """Member count (accounts in the country whose interests include the
+    topic — never the members themselves), and the group's posts."""
+    with USERS_LOCK:
+        members = [u for u in USERS.values() if u.get("country") == country and topic in (u.get("interests") or [])]
+    key = f"{country}|{topic}"
+    with GROUP_POSTS_LOCK:
+        posts = [public_post(item) for item in GROUP_POSTS.get(key, [])]
+    localities = sorted({u.get("locality", "") for u in members if u.get("locality")})
+    return {"topic": topic, "country": country, "members": len(members), "localities": localities[:8], "posts": posts, "name": {"en": CIVIC_TOPICS[topic]["en"], "fr": CIVIC_TOPICS[topic]["fr"]}}
+
+
+def public_post(item: dict[str, Any]) -> dict[str, Any]:
+    """What other people see of a comment or perspective. Anonymous posts
+    carry only their persona label — the account id stays server-side."""
+    if item.get("anonymous"):
+        return {k: v for k, v in item.items() if k != "user_id"}
+    return item
+
+
 def community_key(country: str, record_id: str) -> str:
     """Fixture records reuse the same ids in every country, so comments,
     votes and perspectives on them are scoped by country. Published notices
@@ -863,6 +887,7 @@ def save_state() -> None:
         "users": USERS, "sessions": SESSIONS, "feedback": FEEDBACK, "rep_responses": REP_RESPONSES,
         "comments": COMMENTS, "votes": VOTES, "shares": SHARES, "perspectives": PERSPECTIVES,
         "published_notices": PUBLISHED_NOTICES,
+        "group_posts": GROUP_POSTS,
         "extra_records": {rid: rec for rid, rec in RECORDS.items() if rid.startswith(("notice-", "explained-", "source-"))},
         "news": [n for n in NEWS if str(n.get("id", "")).startswith("notice-")],
         "issues": [i for i in ISSUES if str(i.get("id", "")).startswith("notice-")],
@@ -888,6 +913,7 @@ def load_state() -> bool:
     SHARES[:] = data.get("shares", [])
     PERSPECTIVES.update(data.get("perspectives", {}))
     PUBLISHED_NOTICES[:] = data.get("published_notices", [])
+    GROUP_POSTS.update(data.get("group_posts", {}))
     RECORDS.update(data.get("extra_records", {}))
     NEWS[:0] = data.get("news", [])
     ISSUES[:0] = data.get("issues", [])
@@ -1004,63 +1030,156 @@ def ollama_explain(source_text: str, title: str, language: str) -> dict[str, Any
 
 
 # --- Profile interpretation -------------------------------------------------
-# A resident describes what they do in their own words and language ("je
-# vends du poisson au marché de Bè", "mo n ta ẹran" …). The local model turns
-# that into a normalised label plus a small, readable weight per civic topic.
-# The weights are what the client uses to order the feed — nothing else about
-# the description is kept, and the result is cached so the model runs once per
-# distinct description.
-CIVIC_TOPICS: dict[str, str] = {
-    "water": "water supply, boreholes, water cuts", "roads": "roads, market access roads, diversions", "health": "clinics, vaccination, health alerts, medicines",
-    "education": "schools, enrolment, school supplies", "energy": "electricity, load shedding, power cuts", "works": "public works, drains, construction sites",
-    "markets": "market days, stall fees, market management", "registry": "civil registry, birth certificates", "safety": "fire, security, emergencies",
-    "permits": "building permits, business licences", "transport": "bus terminals, transport fares, moto-taxis", "sanitation": "waste collection, toilets, hygiene",
-    "budget": "public budget, participatory budget, spending", "flooding": "rains, floods, risk zones", "employment": "jobs, training programmes, youth schemes",
-    "land": "land titles, plots, land regularisation", "exams": "national examinations, results", "tax": "taxes, levies, business fees",
-    "identity": "national ID cards, enrolment", "elections": "voter registration, elections", "meeting": "public meetings, consultations", "services": "street lighting, municipal services",
+# A person describes who they are in their own words and language ("I sell
+# tomatoes at the roadside and keep three goats", "je suis enseignante à
+# Abobo", "mo n ta ẹran ni ọja"). The interpreter maps that into the
+# CONTROLLED vocabulary below — a list of topic ids, never free-form
+# categories — plus one plain sentence that is shown back to the person to
+# confirm or correct. Ranking is then done by a fixed, published weight
+# table on the client; the model never orders anything directly.
+#
+# Data rule: nothing sensitive is extracted or echoed. Ethnicity, religion,
+# politics, health, immigration status, income, exact address, gender and
+# named individuals are ignored even if volunteered (prompt instruction; the
+# keyword fallback can only match occupations and topics by construction).
+CIVIC_TOPICS: dict[str, dict[str, str]] = {
+    "water": {"en": "water access", "fr": "accès à l’eau", "hint": "water supply, boreholes, water cuts"},
+    "roads": {"en": "roads", "fr": "routes", "hint": "roads, market access roads, diversions"},
+    "health": {"en": "health services", "fr": "services de santé", "hint": "clinics, vaccination, health alerts, medicines"},
+    "education": {"en": "schools", "fr": "écoles", "hint": "schools, enrolment, school supplies"},
+    "energy": {"en": "electricity", "fr": "électricité", "hint": "electricity, load shedding, power cuts"},
+    "works": {"en": "public works", "fr": "travaux publics", "hint": "public works, drains, construction sites"},
+    "markets": {"en": "market trade", "fr": "commerce au marché", "hint": "market days, stall fees, market management"},
+    "registry": {"en": "civil registry", "fr": "état civil", "hint": "civil registry, birth certificates"},
+    "safety": {"en": "safety", "fr": "sécurité", "hint": "fire, security, emergencies"},
+    "permits": {"en": "permits & licences", "fr": "permis et licences", "hint": "building permits, business licences"},
+    "transport": {"en": "transport", "fr": "transport", "hint": "bus terminals, transport fares, moto-taxis"},
+    "sanitation": {"en": "sanitation", "fr": "assainissement", "hint": "waste collection, toilets, hygiene"},
+    "budget": {"en": "public budget", "fr": "budget public", "hint": "public budget, participatory budget, spending"},
+    "flooding": {"en": "flooding", "fr": "inondations", "hint": "rains, floods, risk zones"},
+    "employment": {"en": "jobs & training", "fr": "emploi et formation", "hint": "jobs, training programmes, youth schemes"},
+    "land": {"en": "land", "fr": "foncier", "hint": "land titles, plots, land regularisation"},
+    "exams": {"en": "exams", "fr": "examens", "hint": "national examinations, results"},
+    "tax": {"en": "taxes & fees", "fr": "impôts et taxes", "hint": "taxes, levies, business fees"},
+    "identity": {"en": "ID cards", "fr": "pièces d’identité", "hint": "national ID cards, enrolment"},
+    "elections": {"en": "elections", "fr": "élections", "hint": "voter registration, elections"},
+    "meeting": {"en": "public meetings", "fr": "réunions publiques", "hint": "public meetings, consultations"},
+    "services": {"en": "municipal services", "fr": "services municipaux", "hint": "street lighting, municipal services"},
+    "farming": {"en": "farming", "fr": "agriculture", "hint": "crops, seeds, fertiliser, farm inputs, harvest"},
+    "livestock": {"en": "livestock & animal health", "fr": "élevage et santé animale", "hint": "livestock, goats, cattle, poultry, animal vaccination, grazing"},
+}
+
+# Deterministic fallback: occupation and topic words (EN, FR, a few local
+# words) → topic ids. Used when no model is connected, so the feature never
+# silently disappears.
+DESCRIPTION_KEYWORDS: dict[str, list[str]] = {
+    "farming": ["farm", "crop", "maize", "cassava", "yam", "rice", "cocoa", "harvest", "agricult", "cultiv", "champ", "récolte", "maïs", "manioc", "igname", "planteur", "shamba", "kulima", "oko", "àgbẹ̀"],
+    "livestock": ["goat", "cattle", "cow", "sheep", "poultry", "chicken", "herd", "livestock", "breeder", "chèvre", "bœuf", "vache", "mouton", "volaille", "éleveur", "élevage", "bétail", "mifugo", "ewúré", "màlúù"],
+    "markets": ["market", "sell", "vendor", "trader", "trade", "stall", "shop", "kiosk", "tomato", "fish", "butcher", "marché", "vend", "commerç", "boutique", "étal", "poisson", "boucher", "soko", "biashara", "ọjà", "onísòwò"],
+    "water": ["water", "borehole", "well", "tap", "eau", "forage", "puits", "maji", "omi"],
+    "roads": ["road", "driver", "taxi", "moto", "boda", "okada", "route", "chauffeur", "barabara", "ọ̀nà"],
+    "transport": ["transport", "bus", "truck", "lorry", "matatu", "danfo", "gbaka", "wôrô", "transporteur", "camion"],
+    "health": ["nurse", "clinic", "health", "pharma", "midwife", "doctor", "infirm", "santé", "clinique", "sage-femme", "médecin", "afya", "ìlera"],
+    "education": ["teacher", "school", "pupil", "student", "enseign", "école", "élève", "étudiant", "mwalimu", "shule", "olùkọ́", "ilé ìwé"],
+    "exams": ["exam", "bac", "bepc", "wassce", "kcse", "examen", "candidat"],
+    "energy": ["electric", "power", "solar", "welder", "hairdress", "barber", "tailor", "électric", "courant", "soudeur", "coiff", "couturi", "stima", "iná"],
+    "works": ["mason", "builder", "construction", "carpenter", "plumber", "maçon", "bâtiment", "chantier", "menuisier", "plombier", "fundi"],
+    "permits": ["permit", "licence", "license", "permis", "autorisation"],
+    "land": ["land", "plot", "parcel", "title", "terrain", "parcelle", "foncier", "titre", "ardhi", "ilẹ̀"],
+    "tax": ["tax", "levy", "impôt", "taxe", "patente", "kodi"],
+    "employment": ["job", "unemploy", "looking for work", "apprentice", "training", "emploi", "chômage", "apprenti", "formation", "kazi", "iṣẹ́"],
+    "identity": ["id card", "identity", "passport", "carte d’identité", "carte d'identité", "cni", "kitambulisho"],
+    "elections": ["vote", "election", "électeur", "élection", "uchaguzi", "ìdìbò"],
+    "registry": ["birth", "civil registry", "naissance", "état civil", "acte"],
+    "budget": ["budget", "council", "conseil", "councillor", "journalist", "journaliste", "radio"],
+    "meeting": ["chief", "leader", "association", "ngo", "ong", "organiz", "organis", "imam", "pastor", "pasteur", "chef de quartier"],
+    "sanitation": ["waste", "garbage", "sanitation", "toilet", "ordures", "déchets", "assainissement", "latrine", "taka"],
+    "flooding": ["flood", "rain", "inondation", "pluie", "mafuriko"],
+    "safety": ["security", "fire", "police", "sécurité", "incendie", "usalama"],
+    "services": ["lighting", "lamp", "éclairage", "lampadaire"],
+    "household": [],
 }
 PROFILE_CACHE: dict[str, dict[str, Any]] = {}
 PROFILE_CACHE_LOCK = threading.Lock()
 
 
-def interpret_profession(text: str, language: str) -> dict[str, Any] | None:
-    key = " ".join(text.lower().split())[:200]
+def topic_names(topics: list[str], lang: str) -> str:
+    return " · ".join(CIVIC_TOPICS[t][lang] for t in topics if t in CIVIC_TOPICS)
+
+
+def interpret_description_keywords(text: str, lang: str) -> dict[str, Any]:
+    """No-model path: count keyword hits per topic, keep the best six."""
+    low = text.lower()
+    scored = []
+    for topic, words in DESCRIPTION_KEYWORDS.items():
+        # short words must match whole words ("road", not "roadside"); longer
+        # ones match as prefixes so "agricult" covers agriculture/agricultrice.
+        hits = sum(len(re.findall(r"(?<!\w)" + re.escape(word) + (r"s?(?!\w)" if len(word) < 6 else ""), low)) for word in words)
+        if hits and topic in CIVIC_TOPICS:
+            scored.append((hits, topic))
+    scored.sort(key=lambda item: (-item[0], list(CIVIC_TOPICS).index(item[1])))
+    interests = [topic for _, topic in scored[:6]]
+    if not interests:
+        understood = ("Nous n’avons pas reconnu d’activité précise ; ajoutez des centres d’intérêt ci-dessous." if lang == "fr"
+                      else "We did not recognise a specific activity; add interests below.")
+    else:
+        understood = (f"Nous avons compris : {topic_names(interests[:3], 'fr')}." if lang == "fr" else f"We understood: {topic_names(interests[:3], 'en')}.")
+    return {"interests": interests, "understood": understood, "engine": "keywords"}
+
+
+def interpret_description(text: str, language: str) -> dict[str, Any]:
+    lang = "fr" if str(language).lower().startswith("fr") else "en"
+    key = f"{lang}|{' '.join(text.lower().split())[:300]}"
     with PROFILE_CACHE_LOCK:
         if key in PROFILE_CACHE:
             return PROFILE_CACHE[key]
-    if not OLLAMA_MODEL or not key:
-        return None
-    schema = {
-        "type": "object",
-        "properties": {
-            "label_en": {"type": "string"}, "label_fr": {"type": "string"},
-            "topics": {"type": "object", "properties": {topic: {"type": "integer", "minimum": 0, "maximum": 3} for topic in CIVIC_TOPICS}},
-        },
-        "required": ["label_en", "label_fr", "topics"],
-    }
-    topic_lines = "\n".join(f"- {topic}: {desc}" for topic, desc in CIVIC_TOPICS.items())
-    prompt = (
-        "A resident of a West or East African city describes their occupation or situation, possibly in French, English or a local language "
-        "(Éwé, Yorùbá, Kiswahili, Dioula, Dagbani, Hausa, Twi ...). Understand it, give a short neutral occupation label in English and in French, "
-        "and rate how relevant each civic topic is to someone in that situation: 3 = directly affects their livelihood or daily work, "
-        "2 = often matters, 1 = sometimes, 0 = no particular link. Most topics should be 0. Be literal and practical; do not moralise.\n\n"
-        f"TOPICS:\n{topic_lines}\n\nDESCRIPTION: {key}"
-    )
-    body = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False, "format": schema}).encode("utf-8")
-    request = urllib.request.Request(OLLAMA_URL, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        with urllib.request.urlopen(request, timeout=OLLAMA_TIMEOUT or 30) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        result = json.loads(str(payload.get("response", "")))
-        topics = {topic: max(0, min(3, int(result.get("topics", {}).get(topic, 0) or 0))) for topic in CIVIC_TOPICS}
-        if not any(topics.values()):
-            return None
-        interpreted = {"text": key, "label_en": str(result.get("label_en", "")).strip()[:60] or key, "label_fr": str(result.get("label_fr", "")).strip()[:60] or key, "topics": {k: v for k, v in topics.items() if v}, "model": OLLAMA_MODEL}
-    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, TypeError, ValueError):
-        return None
+    result = None
+    if OLLAMA_MODEL:
+        schema = {
+            "type": "object",
+            "properties": {
+                "interests": {"type": "array", "items": {"type": "string", "enum": list(CIVIC_TOPICS)}, "maxItems": 6},
+                "understood": {"type": "string"},
+            },
+            "required": ["interests", "understood"],
+        }
+        vocab = "\n".join(f"- {topic}: {meta['hint']}" for topic, meta in CIVIC_TOPICS.items())
+        prompt = (
+            "Someone describes, in their own words and possibly in French, English or an African language (Éwé, Yorùbá, Kiswahili, Dioula, Dagbani, Hausa, Twi ...), "
+            "what they do and what they care about — for themselves or on behalf of another person. "
+            "Choose, from the controlled vocabulary below and nothing else, the 2 to 6 civic topics most relevant to that situation, most important first. "
+            f"Then write ONE short plain clause in {'French — never English' if lang == 'fr' else 'English — never French'}, without any prefix, that restates the occupation or situation neutrally "
+            f"(for example {'« vous vendez des tomates et élevez des chèvres »' if lang == 'fr' else '“you sell tomatoes and keep goats”'}) so the person can confirm or correct it. "
+            "Strict rules: ignore and never mention ethnicity, religion, political views, health conditions or illnesses, immigration status, income, exact addresses, gender or any named person, even if the description includes them — "
+            "they must influence neither the topics nor the sentence. Example: “chauffeur de moto-taxi, musulman, diabétique” → interests [\"transport\", \"roads\"], sentence “Nous avons compris : vous êtes chauffeur de moto-taxi.” "
+            "Do not judge, advise or moralise.\n\n"
+            f"VOCABULARY:\n{vocab}\n\nDESCRIPTION: {text[:600]}"
+        )
+        body = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False, "format": schema}).encode("utf-8")
+        request = urllib.request.Request(OLLAMA_URL, data=body, headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=OLLAMA_TIMEOUT or 30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            parsed = json.loads(str(payload.get("response", "")))
+            interests = []
+            for topic in parsed.get("interests", []):
+                if topic in CIVIC_TOPICS and topic not in interests:
+                    interests.append(topic)
+            understood = re.sub(r"^(we understood|nous avons compris)\s*:?\s*", "", " ".join(str(parsed.get("understood", "")).split()), flags=re.I).strip(" .«»\"“”")[:200]
+            wrong_language = (lang == "en" and re.search(r"\b(vous|nous|êtes|est|une?)\b", understood, re.I)) or (lang == "fr" and re.search(r"\b(you|the|and|are)\b", understood, re.I))
+            if interests and understood and not wrong_language:
+                result = {"interests": interests[:6], "understood": ("Nous avons compris : " if lang == "fr" else "We understood: ") + understood + ".", "engine": "ollama"}
+            elif interests:
+                # Keep the model's topics, but say them in the interface language ourselves.
+                fallback = interpret_description_keywords(text, lang)
+                result = {"interests": interests[:6], "understood": ("Nous avons compris : " if lang == "fr" else "We understood: ") + topic_names(interests[:3], lang) + ".", "engine": "ollama"}
+        except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, TypeError, ValueError, AttributeError):
+            result = None
+    if not result:
+        result = interpret_description_keywords(text, lang)
     with PROFILE_CACHE_LOCK:
-        PROFILE_CACHE[key] = interpreted
-    return interpreted
+        PROFILE_CACHE[key] = result
+    return result
 
 
 def build_explained_record(source_text: str, title: str, origin_label: str, area: dict[str, str], is_french: bool) -> dict[str, Any]:
@@ -1391,6 +1510,20 @@ class DemoHandler(BaseHTTPRequestHandler):
             if not user:
                 return self.send_error_json("Session expired. Sign in again.", HTTPStatus.UNAUTHORIZED)
             return self.send_json({"user": user})
+        if path == "/api/groups":
+            country = parse_qs(parsed.query).get("country", [""])[0]
+            if country not in COUNTRY_CONTEXTS:
+                return self.send_error_json("Unknown country", HTTPStatus.NOT_FOUND)
+            groups = [group_summary(country, topic) for topic in CIVIC_TOPICS]
+            for group in groups:
+                group["post_count"] = len(group.pop("posts"))
+            return self.send_json({"groups": groups})
+        if path.startswith("/api/groups/"):
+            topic = path.removeprefix("/api/groups/").strip("/")
+            country = parse_qs(parsed.query).get("country", [""])[0]
+            if topic not in CIVIC_TOPICS or country not in COUNTRY_CONTEXTS:
+                return self.send_error_json("Unknown group", HTTPStatus.NOT_FOUND)
+            return self.send_json(group_summary(country, topic))
         if path == "/api/community/people":
             country = parse_qs(parsed.query).get("country", [""])[0]
             with USERS_LOCK:
@@ -1441,14 +1574,14 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Record not found", HTTPStatus.NOT_FOUND)
             key = community_key(parse_qs(parsed.query).get("country", [""])[0], record_id)
             with COMMENTS_LOCK:
-                comments = list(COMMENTS.get(key, []))
+                comments = [public_post(item) for item in COMMENTS.get(key, [])]
             with VOTES_LOCK:
                 vote_map = dict(VOTES.get(key, {}))
             counts = {"helpful": sum("helpful" in choices for choices in vote_map.values()), "needs-clarity": sum("needs-clarity" in choices for choices in vote_map.values())}
             viewer = demo_user(parse_qs(parsed.query).get("token", [""])[0])
             user_id = viewer["id"] if viewer else parse_qs(parsed.query).get("user_id", [""])[0]
             with PERSPECTIVES_LOCK:
-                submitted_perspectives = list(PERSPECTIVES.get(key, []))
+                submitted_perspectives = [public_post(item) for item in PERSPECTIVES.get(key, [])]
             return self.send_json({"comments": comments, "votes": counts, "selected_vote": vote_map.get(user_id, []), "perspectives": submitted_perspectives})
         if path.startswith("/api/records/"):
             record_id = path.removeprefix("/api/records/")
@@ -1491,13 +1624,42 @@ class DemoHandler(BaseHTTPRequestHandler):
             save_state()
             return self.send_json({"ok": True})
         if parsed.path == "/api/profile/interpret":
-            text = " ".join(str(data.get("text", "")).split())
+            text = " ".join(str(data.get("description", data.get("text", ""))).split())
             if len(text) < 2:
                 return self.send_error_json("Describe what you do first.")
-            result = interpret_profession(text, str(data.get("language", "English")))
-            if not result:
-                return self.send_error_json("Profile interpretation needs a connected local Ollama model (CIVIC_BRIDGE_OLLAMA_MODEL).", HTTPStatus.SERVICE_UNAVAILABLE)
-            return self.send_json(result)
+            return self.send_json({**interpret_description(text, str(data.get("language", "English"))), "topics": {topic: {"en": meta["en"], "fr": meta["fr"]} for topic, meta in CIVIC_TOPICS.items()}})
+
+        if parsed.path == "/api/profile/interests":
+            user = session_user(str(data.get("token", "")))
+            if not user:
+                return self.send_error_json("Sign in first.", HTTPStatus.UNAUTHORIZED)
+            interests = [topic for topic in data.get("interests", []) if topic in CIVIC_TOPICS][:8]
+            with USERS_LOCK:
+                user["interests"] = interests
+                if str(data.get("locality", "")):
+                    user["locality"] = str(data.get("locality", ""))[:80]
+                if str(data.get("country", "")) in COUNTRY_CONTEXTS:
+                    user["country"] = str(data.get("country", ""))
+            save_state()
+            return self.send_json({"interests": interests})
+        if parsed.path.startswith("/api/groups/") and parsed.path.endswith("/posts"):
+            topic = parsed.path.removeprefix("/api/groups/").removesuffix("/posts").strip("/")
+            country = str(data.get("country", ""))
+            user = demo_user(str(data.get("token", "")))
+            message = " ".join(str(data.get("message", "")).split())
+            if topic not in CIVIC_TOPICS or country not in COUNTRY_CONTEXTS:
+                return self.send_error_json("Unknown group", HTTPStatus.NOT_FOUND)
+            if not user:
+                return self.send_error_json("Sign in first.", HTTPStatus.UNAUTHORIZED)
+            if not message:
+                return self.send_error_json("Write a message first.")
+            anonymous = bool(data.get("anonymous"))
+            persona = " ".join(str(data.get("persona", "")).split())[:80]
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous member" if anonymous else user["label"]), "anonymous": anonymous, "message": message, "created_at": now_iso()}
+            with GROUP_POSTS_LOCK:
+                GROUP_POSTS.setdefault(f"{country}|{topic}", []).insert(0, item)
+            save_state()
+            return self.send_json(public_post(item), HTTPStatus.CREATED)
         if parsed.path == "/api/voice/transcribe":
             preset = data.get("preset", "")
             transcript = data.get("text", "") or (
@@ -1628,11 +1790,13 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Choose a demo account first.", HTTPStatus.UNAUTHORIZED)
             if not message:
                 return self.send_error_json("Comment is required.")
-            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": user["label"], "type": "Community comment", "message": message, "status": "Published for review", "created_at": now_iso()}
+            anonymous = bool(data.get("anonymous"))
+            persona = " ".join(str(data.get("persona", "")).split())[:80]
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous resident" if anonymous else user["label"]), "anonymous": anonymous, "type": "Community comment", "message": message, "status": "Published for review", "created_at": now_iso()}
             with COMMENTS_LOCK:
                 COMMENTS.setdefault(key, []).insert(0, item)
             save_state()
-            return self.send_json(item, HTTPStatus.CREATED)
+            return self.send_json(public_post(item), HTTPStatus.CREATED)
         if parsed.path.startswith("/api/records/") and parsed.path.endswith("/vote"):
             record_id = parsed.path.removeprefix("/api/records/").removesuffix("/vote").strip("/")
             user = demo_user(str(data.get("token", "")))
@@ -1667,11 +1831,13 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Choose a demo account first.", HTTPStatus.UNAUTHORIZED)
             if not label or not body:
                 return self.send_error_json("Add a short label and description first.")
-            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": user["label"], "label": label, "body": body, "submitted": True, "created_at": now_iso()}
+            anonymous = bool(data.get("anonymous"))
+            persona = " ".join(str(data.get("persona", "")).split())[:80]
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous resident" if anonymous else user["label"]), "anonymous": anonymous, "label": label, "body": body, "submitted": True, "created_at": now_iso()}
             with PERSPECTIVES_LOCK:
                 PERSPECTIVES.setdefault(key, []).append(item)
             save_state()
-            return self.send_json(item, HTTPStatus.CREATED)
+            return self.send_json(public_post(item), HTTPStatus.CREATED)
         if parsed.path.startswith("/api/records/") and parsed.path.endswith("/translate"):
             record_id = parsed.path.removeprefix("/api/records/").removesuffix("/translate").strip("/")
             record = resolve_record(record_id, str(data.get("country", "")))

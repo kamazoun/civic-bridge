@@ -1,8 +1,16 @@
 # Civic Bridge
 
-Civic Bridge keeps a public notice beside its original source, separates what is confirmed from what is not, and turns what is missing into a question addressed to the office responsible.
+**You shouldn't have to understand how government is structured to find out what affects you.**
 
-Every civic AI tool summarises what the government said. Civic Bridge shows what it did *not* say — and routes that to the office that owes the answer. *Facts* and *unknowns* are separate fields from ingestion to screen, so the model cannot quietly smooth an open question into confident prose; each unknown is a button that opens a draft addressed to the responsible office, whose replies, response rate and record are public. Five countries, French/English interface, local-language translation, voice and SMS/WhatsApp channels, and a local model through [Ollama](https://ollama.com) so nothing leaves the community.
+Civic information is organised around institutions and documents. A farmer with a water problem has to already know whether that is a ward matter, a district works department, a regional directorate or a national utility before they can even start looking. Civic Bridge inverts that: you say who you are — your work, your stage of life, where you live, in your own words and language — and it assembles the slice of government that actually touches you, across every level at once, in the order it matters to you, next to the people the same decision lands on.
+
+Three moves, in order:
+
+1. **Who is responsible** — the full ward → district → region → national chain for your country, each office with its remit, its published notices, its replies and its response rate, so you know who to address.
+2. **What matters to you** — a profile you describe in free text; the app shows *what it understood* and you correct it; a fixed, published weight table orders the feed and every record explains *why it is there*. Order changes, access never does.
+3. **Who else this lands on** — everyone in your country with the same topic in their profile is a group: compare notes, ask what others were told, prepare one common question — with your name or anonymously.
+
+Plain-language explanation beside the original source, with *what the document does not say* kept as a separate field and turned into a question addressed to the responsible office, is how a record becomes readable and actionable. It is infrastructure, not the idea. A local model through [Ollama](https://ollama.com) does the language work so nothing leaves the community; everything degrades to honest, labelled fallbacks without it.
 
 | | |
 |---|---|
@@ -156,7 +164,11 @@ All configuration is by environment variable.
 
 **Location and language.** Area is set from browser location (reverse geocoding) or chosen from a map. Interface language and translation targets follow the country.
 
-**Personalisation.** A resident describes what they do in their own words and language — typed or spoken ("je vends du poisson au marché de Bè", "mo n ta ẹran ni ọja", "boda boda rider in Kasarani"). The local model turns that into a neutral occupation label (EN/FR) and a small weight per civic topic (`POST /api/profile/interpret`, topics in `CIVIC_TOPICS`), which is shown back to the user ("Understood as: fish vendor · markets, roads, sanitation…"). Age range adds a life-stage weight (18–29: jobs, ID, elections; 30–44: land, permits, tax…). The feed is ordered by those weights — readable, editable, no black box. Without a model, a 40-entry grouped profession list with the same weight tables (`PROFESSION_TOPIC_WEIGHTS` in `public/static/app.js`) is the fallback. Only the weights and label are kept; the description itself is not sent anywhere.
+**Profile: free text → what we understood → fixed weights.** A person describes what they do (or who they are filling this in for) in any language, typed or spoken. `POST /api/profile/interpret` maps that into a *controlled vocabulary* of 24 civic topics (`CIVIC_TOPICS` in `app.py`) plus one plain sentence — by the local model when connected, by EN/FR/local-word keyword matching otherwise — and never free-forms categories. The sentence and topic chips are shown back ("What we understood… so we will show you first…"), removable and addable; the person's edit always wins. Ranking is then a published rule (`INTEREST_POSITION_WEIGHTS`: first two topics +3, next two +2, then +1; `AGE_TOPIC_WEIGHTS` for the age band), and every ranked record carries a **"Why am I seeing this here?"** panel with the person's own words, what was understood, and the exact points. The model never orders anything directly. Data rule, enforced in the prompt and by construction in the fallback: ethnicity, religion, politics, health, immigration status, income, exact address, gender and named individuals are ignored even if volunteered. Age informs relevance only — no gating anywhere.
+
+**Groups.** A group is everyone in a country whose profile lists a topic — computed, never stored, shown as a count and a list of localities, never a member list (`GET /api/groups`, `/api/groups/{topic}`). Each group has its own conversation and the records on that topic; every record's "Who else this lands on" card links to its group. Signed-in accounts sync their topics to the server (`POST /api/profile/interests`) so groups follow the account.
+
+**Anonymous participation.** Comments, perspectives and group posts can be posted as "A resident of Lomé (market trade)": the persona carries only a topic and a locality, the account id stays server-side and is stripped from every public view (`public_post`), and no phone number is ever attached to a post.
 
 **Representatives.** A four-level institutional hierarchy per country using its own administrative vocabulary. Each office has a profile whose statistics — records on file, sourced records, questions received, office replies, response rate, community pulse, last activity — are computed live from activity on the platform (`representative_stats` in `app.py`), a track record, a focus area, follow/watchlist, and a labelled right of reply that only office accounts can post. Portraits resolve per country and level from `public/static/images/reps/{country}-{level}.jpeg`.
 
@@ -278,8 +290,8 @@ All endpoints return JSON. Mutating endpoints identify the account by a session 
 | GET | `/api/records/{id}` | One record (country-resolved) |
 | GET | `/api/records/{id}/community` | Comments, vote totals, caller's votes, perspectives |
 | POST | `/api/records/{id}/vote` | Toggle `helpful` or `needs-clarity` |
-| POST | `/api/records/{id}/comments` | Add a comment |
-| POST | `/api/records/{id}/perspectives` | Add a resident perspective |
+| POST | `/api/records/{id}/comments` | Add a comment (`anonymous`, `persona` optional) |
+| POST | `/api/records/{id}/perspectives` | Add a resident perspective (`anonymous`, `persona` optional) |
 | POST | `/api/records/{id}/translate` | Translate a record |
 | POST | `/api/share` | Record a simulated share |
 
@@ -302,7 +314,11 @@ All endpoints return JSON. Mutating endpoints identify the account by a session 
 | POST | `/api/feedback` | Save a draft for review |
 | GET | `/api/feedback` | Saved drafts |
 | POST | `/api/sources/explain` | Text, URL, or base64 PDF → new record |
-| POST | `/api/profile/interpret` | Free-text occupation (any language) → label EN/FR + topic weights (local model; 503 without one) |
+| POST | `/api/profile/interpret` | Free-text description (any language) → `interests` (controlled topic ids) + `understood` sentence; model or keyword fallback |
+| POST | `/api/profile/interests` | Save a signed-in account's edited topics (drives group membership) |
+| GET | `/api/groups?country=` | Member count and post count per topic |
+| GET | `/api/groups/{topic}?country=` | One group: count, localities, posts |
+| POST | `/api/groups/{topic}/posts` | Post to a group (`anonymous`, `persona`) |
 | POST | `/api/voice/transcribe` | Deterministic sample transcript |
 
 **Public Information Portal**
