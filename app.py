@@ -1569,6 +1569,16 @@ class DemoHandler(BaseHTTPRequestHandler):
             if topic not in CIVIC_TOPICS or country not in COUNTRY_CONTEXTS:
                 return self.send_error_json("Unknown group", HTTPStatus.NOT_FOUND)
             return self.send_json(group_summary(country, topic))
+        if path == "/api/questions":
+            country = parse_qs(parsed.query).get("country", [""])[0]
+            with FEEDBACK_LOCK:
+                items = [dict(public_post(item)) for item in FEEDBACK if item.get("country") == country]
+            with REP_RESPONSES_LOCK:
+                for item in items:
+                    replies = REP_RESPONSES.get(response_key(country, item.get("office_id", "")), [])
+                    item["office_replied"] = any(reply.get("created_at", "") > item.get("created_at", "") for reply in replies)
+            items.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+            return self.send_json({"questions": items[:30], "total": len(items)})
         if path == "/api/community/people":
             country = parse_qs(parsed.query).get("country", [""])[0]
             with USERS_LOCK:

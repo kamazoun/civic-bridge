@@ -27,6 +27,8 @@ const state = {
   askUnknown: null,
   visiting: null,
   feedbackLoadedFor: null,
+  areaQuestions: [],
+  areaQuestionsFor: null,
   groups: [],
   groupTopic: null,
   group: null,
@@ -87,6 +89,7 @@ const HELP = {
     anonymous: "Posts as “A resident of <your area> (<your first topic>)”. Your account is never attached to the post.",
     voice: "Not an assistant: nothing talks back. One button reads the record aloud (your phone's own voices), the other turns your spoken words into text in the box. Your question still goes to a human office.",
     concerns_you: "Notices published in the last seven days on a topic that is in your profile. The topic shown is the reason. Everything else is still in the list below — this only lifts what is likely to matter to you.",
+    area_questions: "Public questions other residents of your area sent to their offices, newest first, with whether the office has replied since. Every question is public; only the sender's account can be hidden (anonymous).",
     questions: "Questions residents sent to this office through the record. They are public, so the office's answer — or its silence — is visible to everyone. The office replies with its right of reply.",
     home: "Your front page. Top: the records most relevant to you. Right: the offices responsible in your area. Below: everything on the record for your area, newest first.",
     public_view: "You are reading without an account. Everything is visible; sign in only when you want to ask an office, comment, vote or join a group.",
@@ -144,6 +147,7 @@ const HELP = {
     anonymous: "Publie en tant que « Un·e résident·e de <votre zone> (<votre premier thème>) ». Votre compte n’est jamais attaché au message.",
     voice: "Pas un assistant : rien ne vous répond. Un bouton lit la fiche à voix haute (les voix de votre téléphone), l’autre transforme vos mots dits en texte dans le champ. Votre question va toujours à un bureau humain.",
     concerns_you: "Les avis publiés ces sept derniers jours sur un thème de votre profil. Le thème affiché en est la raison. Tout le reste est toujours dans la liste en dessous — ceci ne fait que remonter ce qui a des chances de vous concerner.",
+    area_questions: "Les questions publiques que d’autres résidents de votre zone ont envoyées à leurs bureaux, du plus récent au plus ancien, avec l’indication d’une réponse. Chaque question est publique ; seul le compte de l’auteur peut être masqué (anonyme).",
     questions: "Les questions que les résidents ont envoyées à ce bureau via la fiche. Elles sont publiques : la réponse du bureau — ou son silence — est visible de tous. Le bureau répond par son droit de réponse.",
     home: "Votre page d’accueil. En haut : les fiches les plus pertinentes pour vous. À droite : les bureaux responsables de votre zone. En bas : tout ce qui est au dossier pour votre zone, du plus récent au plus ancien.",
     public_view: "Vous consultez sans compte. Tout est visible ; connectez-vous seulement pour interroger un bureau, commenter, voter ou rejoindre un groupe.",
@@ -639,6 +643,12 @@ const STRINGS = {
     awaiting_reply: "Awaiting the office's reply",
     sent_anonymously: "sent anonymously",
     sign_in_to_see_questions: "Sign in to see the questions you sent.",
+    how_to_ask_title: "To ask a question, start from a record",
+    how_to_ask_body: "Open any notice, click one of the things the source does not say (or write your own on the Feedback tab), and send it to the office responsible.",
+    how_to_ask_button: "Choose a record →",
+    area_questions_eyebrow: (area) => `WHAT OTHER RESIDENTS OF ${area} HAVE ASKED`,
+    no_area_questions: "No question sent in your area yet.",
+    open_record_arrow: "Open the record →",
     community_view_eyebrow: "COMMUNITY VIEW",
     community_view_title: "Keep agreement and difference visible.",
     community_view_body: "A useful summary shows what is shared, what is unanswered, and where priorities differ.",
@@ -1291,6 +1301,12 @@ const STRINGS = {
     awaiting_reply: "En attente de la réponse du bureau",
     sent_anonymously: "envoyée anonymement",
     sign_in_to_see_questions: "Connectez-vous pour voir les questions que vous avez envoyées.",
+    how_to_ask_title: "Pour poser une question, partez d’une fiche",
+    how_to_ask_body: "Ouvrez un avis, cliquez sur l’un des points que la source ne dit pas (ou écrivez le vôtre dans l’onglet Retour), et envoyez-le au bureau responsable.",
+    how_to_ask_button: "Choisir une fiche →",
+    area_questions_eyebrow: (area) => `CE QUE D’AUTRES RÉSIDENTS DE ${area} ONT DEMANDÉ`,
+    no_area_questions: "Aucune question envoyée dans votre zone pour l’instant.",
+    open_record_arrow: "Ouvrir la fiche →",
     community_view_eyebrow: "VUE COMMUNAUTAIRE",
     community_view_title: "Gardez visibles les accords et les désaccords.",
     community_view_body: "Un bon résumé montre ce qui est partagé, ce qui reste sans réponse, et où les priorités diffèrent.",
@@ -2829,8 +2845,15 @@ async function submitExplain() {
 
 function renderFeedbackList() {
   if (state.user && !state.feedbackLoadedFor) { state.feedbackLoadedFor = state.user.id; fetch(`/api/feedback?token=${encodeURIComponent(authToken())}`).then((r) => r.ok ? r.json() : { feedback: [] }).then((data) => { state.feedback = data.feedback || []; if (state.view === "feedback") render(); }).catch(() => {}); }
+  if (state.dashboard.country && state.areaQuestionsFor !== state.dashboard.country) { state.areaQuestionsFor = state.dashboard.country; fetch(`/api/questions?country=${encodeURIComponent(state.dashboard.country)}`).then((r) => r.ok ? r.json() : { questions: [] }).then((data) => { state.areaQuestions = data.questions || []; if (state.view === "feedback") render(); }).catch(() => {}); }
   const myFeedback = state.user ? state.feedback : [];
-  app.innerHTML = `<section class="page-head"><div><span class="eyebrow">${t("my_feedback_eyebrow")} ${help("my_questions")}</span><h1>${t("my_feedback_title")}</h1><p>${t("my_feedback_body")}</p></div><div class="head-note"><strong>${t("saved_drafts_count", myFeedback.length)}</strong><span>${t("nothing_sent_note")}</span></div></section><div class="feedback-list">${!state.user ? `<div class="empty-state">${t("sign_in_to_see_questions")}</div>` : myFeedback.length ? myFeedback.map((item) => `<article class="saved-feedback"><div class="saved-feedback-top"><h3>${esc(item.record_title)}</h3><small class="${item.office_replied ? "replied" : ""}">${item.office_replied ? t("office_replied") : t("awaiting_reply")}</small></div>${item.question ? `<p class="asking-about">${esc(item.question)}</p>` : ""}<p>${esc(item.draft)}</p><div class="record-meta" style="margin-top:12px">${item.office ? `<span class="tag">→ ${esc(item.office)}</span>` : ""}<span class="tag">${esc(formatActivityDate(item.created_at))}</span>${item.anonymous ? `<span class="tag">${t("sent_anonymously")}</span>` : ""}${item.office_id ? `<button class="text-btn" data-rep-detail="${esc(item.office_id)}">${t("open_public_profile_arrow")}</button>` : ""}</div></article>`).join("") : `<div class="empty-state">${t("no_drafts_yet")}</div>`}</div>`;
+  const questionCard = (item) => `<article class="saved-feedback"><div class="saved-feedback-top"><h3>${esc(item.record_title)}</h3><small class="${item.office_replied ? "replied" : ""}">${item.office_replied ? t("office_replied") : t("awaiting_reply")}</small></div>${item.question ? `<p class="asking-about">${esc(item.question)}</p>` : ""}<p>${esc(item.draft)}</p><div class="record-meta" style="margin-top:12px"><span class="tag">${esc(item.user_label)}</span>${item.office ? `<span class="tag">→ ${esc(item.office)}</span>` : ""}<span class="tag">${esc(formatActivityDate(item.created_at))}</span>${item.office_id ? `<button class="text-btn" data-rep-detail="${esc(item.office_id)}">${t("open_public_profile_arrow")}</button>` : ""}${state.records.some((record) => record.id === item.record_id) ? `<button class="text-btn" data-record="${esc(item.record_id)}">${t("open_record_arrow")}</button>` : ""}</div></article>`;
+  const areaQuestions = (state.areaQuestions || []).filter((item) => !state.user || item.user_id !== state.user.id);
+  app.innerHTML = `<section class="page-head"><div><span class="eyebrow">${t("my_feedback_eyebrow")} ${help("my_questions")}</span><h1>${t("my_feedback_title")}</h1><p>${t("my_feedback_body")}</p></div><div class="head-note"><strong>${t("saved_drafts_count", myFeedback.length)}</strong><span>${t("nothing_sent_note")}</span></div></section>
+    <section class="ask-path"><div><strong>${t("how_to_ask_title")}</strong><p>${t("how_to_ask_body")}</p></div><button class="primary-btn" data-route="home">${t("how_to_ask_button")}</button></section>
+    <div class="feedback-list">${!state.user ? `<div class="empty-state">${t("sign_in_to_see_questions")}</div>` : myFeedback.length ? myFeedback.map(questionCard).join("") : `<div class="empty-state">${t("no_drafts_yet")}</div>`}</div>
+    <span class="eyebrow" style="display:block;margin-top:28px">${t("area_questions_eyebrow", esc(state.dashboard.area))} ${help("area_questions")}</span>
+    <div class="feedback-list">${areaQuestions.length ? areaQuestions.slice(0, 10).map(questionCard).join("") : `<div class="empty-state">${t("no_area_questions")}</div>`}</div>`;
 }
 
 function speechSupport() {

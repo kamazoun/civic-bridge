@@ -420,6 +420,15 @@ def seed(app: dict[str, Any]) -> None:
                 anonymous = rng.random() < 0.35
                 app["FEEDBACK"].append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": author["id"], "user_label": (f"Un·e résident·e de {author['locality']}" if lang == "fr" else f"A resident of {author['locality']}") if anonymous else author["display_name"], "anonymous": anonymous, "record_id": record["id"], "record_title": record["title"], "original": draft, "draft": draft, "perspective": "Community question", "language": "Français" if lang == "fr" else "English", "country": country, "office": reps[office_level]["display_name"], "office_id": office_level, "question": "", "status": "Sent to office", "created_at": iso(base_dt + timedelta(days=rng.uniform(1, 30)))})
 
+        # --- A few questions from the demo resident account, so its page is never empty
+        demo = app["USERS"]["resident-demo"]
+        for record in rng.sample(records, 3):
+            notice_office = next((n.get("responsible_office", "") for n in app["PUBLISHED_NOTICES"] if n["id"] == record["id"]), "")
+            office_level = FIXTURE_RECORD_OFFICE.get(record["id"]) or next((rep_id for rep_id, rep in reps.items() if rep["name"] == notice_office), "district-council")
+            template = rng.choice(FEEDBACK_DRAFTS[lang])
+            draft = fill(template, nb=rng.choice(cfg["areas"]), d1=fmt_date(now - timedelta(days=20), lang))
+            app["FEEDBACK"].append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": demo["id"], "user_label": demo["display_name"], "anonymous": False, "record_id": record["id"], "record_title": record["title"], "original": draft, "draft": draft, "perspective": "Community question", "language": "Français" if lang == "fr" else "English", "country": country, "office": reps[office_level]["display_name"], "office_id": office_level, "question": "", "status": "Sent to office", "created_at": iso(rand_dt(25, 2))})
+
         # --- Office replies (right of reply), 6–12 per office
         for level, rep in reps.items():
             author = office_users[level]
