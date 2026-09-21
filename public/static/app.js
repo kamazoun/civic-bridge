@@ -1605,7 +1605,7 @@ function rankingExplanation(issue) {
   const understood = (state.preferences.understood || professionLabel()).replace(/^(we understood|nous avons compris)\s*:\s*/i, "");
   if (fromInterest) parts.push(t("why_interest", names[topic] || topic, fromInterest, state.preferences.description ? `“${state.preferences.description}”` : "", understood));
   if (fromAge) parts.push(t("why_age", t(AGE_RANGES.find((item) => item.id === state.preferences.age)?.key || "age_18_29"), fromAge));
-  return `<details class="why-panel"><summary>${t("why_am_i_seeing_this")}</summary><div><p>${parts.join(" ")}</p><p class="why-total">${t("why_total", fromInterest + fromAge)}</p><p class="why-fixed">${t("why_fixed_weights")}</p><button class="text-btn" data-route="settings">${t("why_correct_it")}</button></div></details>`;
+  return `<details class="why-panel"><summary>${t("why_am_i_seeing_this")}</summary><div><p>${parts.join(" ")}</p><p class="why-total">${t("why_total", fromInterest + fromAge)}</p><p class="why-fixed">${t("why_fixed_weights")}</p><span class="text-btn link-span" data-route="settings" role="link" tabindex="0">${t("why_correct_it")}</span></div></details>`;
 }
 
 function rankForProfile(issues) {
@@ -2209,13 +2209,13 @@ function renderHome() {
         ${concernsYouStrip()}
         ${lead ? `
           <div class="for-you-head"><span class="eyebrow">${hasProfession() ? t("recommended_eyebrow") : t("latest_eyebrow")} ${help("for_you")}</span></div>
-          <button class="lead-story" data-record="${esc(lead.id)}">
+          <article class="lead-story">
             <span class="story-kicker">${esc(lead.type)}</span>
-            <h2>${esc(lead.title)}</h2>
+            <h2 class="story-link" data-record="${esc(lead.id)}" tabindex="0" role="link">${esc(lead.title)}</h2>
             <p>${esc(lead.summary)}</p>
             <div class="story-byline">${byline(lead)}</div>
-          </button>
-          <div class="story-list">${rest.map((issue) => `<button class="story-row" data-record="${esc(issue.id)}"><span class="story-kicker">${esc(issue.type)}</span><h3>${esc(issue.title)}</h3><p>${esc(issue.summary)}</p><div class="story-byline">${byline(issue)}</div></button>`).join("")}</div>
+          </article>
+          <div class="story-list">${rest.map((issue) => `<article class="story-row"><span class="story-kicker">${esc(issue.type)}</span><h3 class="story-link" data-record="${esc(issue.id)}" tabindex="0" role="link">${esc(issue.title)}</h3><p>${esc(issue.summary)}</p><div class="story-byline">${byline(issue)}</div></article>`).join("")}</div>
         ` : ""}
       </div>
       <aside class="news-rail">
