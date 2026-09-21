@@ -734,7 +734,7 @@ FRENCH_COUNTRIES = {"Togo", "Côte d’Ivoire"}
 # say" is read from the notice itself instead of being boilerplate.
 UNCERTAINTY_MARKERS = {
     "fr": ["pas encore", "n’est pas", "n'est pas", "ne sont pas", "à confirmer", "sera précisé", "sera communiqué", "seront communiqué", "reste à", "peut changer", "non précisé", "en attente", "ultérieurement", "dès confirmation", "sous réserve", "ne précise pas", "ne dit pas"],
-    "en": ["not yet", "to be confirmed", "will be announced", "will be published", "will be confirmed", "may change", "remains", "not established", "pending", "once confirmed", "subject to", "does not say", "is not stated", "unclear", "later date"],
+    "en": ["not yet", "to be confirmed", "will be announced", "will be confirmed", "may change", "not established", "pending", "once confirmed", "subject to", "does not say", "is not stated", "unclear", "later date", "has not been", "have not been"],
 }
 GENERIC_UNKNOWNS = {
     "fr": ["Quand la prochaine mise à jour publique sera-t-elle publiée ?", "Où les résidents peuvent-ils poser une question de suivi ?"],
