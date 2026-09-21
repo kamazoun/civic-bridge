@@ -357,6 +357,26 @@ def seed(app: dict[str, Any]) -> None:
         for level, username in cfg["offices"].items():
             office_users[level] = create_user(username, DEMO_PASSWORD, reps[level]["display_name"], "office", country, cfg["locality"], office_id=level)
 
+        # --- The five reference scenarios of the country become ordinary published
+        # notices from the office responsible for their topic, dated in the past.
+        for record in context["records"]:
+            level = FIXTURE_RECORD_OFFICE.get(record["id"], "district-council")
+            rep = reps[level]
+            published = rand_dt(170, 40)
+            notice = {
+                "id": f"notice-{uuid.UUID(int=rng.getrandbits(128)).hex[:10]}",
+                "title": record["title"], "headline": record["title"],
+                "category": ({"water-access": ("Eau", "Water"), "market-road": ("Routes", "Roads"), "clinic-supply": ("Santé", "Health"), "school-supply": ("Éducation", "Education"), "power-outage": ("Énergie", "Energy")}.get(record["id"], ("Avis public", "Public notice")))[0 if lang == "fr" else 1],
+                "locality": cfg["locality"], "region": cfg["region"], "country": country,
+                "office": rep["display_name"], "responsible_office": rep["name"],
+                "summary": record["summary"], "body": " ".join(record["facts"]),
+                "facts": list(record["facts"]), "unknowns": list(record["unknowns"]), "plain_language": record["plain_language"],
+                "source_url": "/publisher", "source": rep["display_name"],
+                "published_at": iso(published), "date": fmt_date(published, lang) + published.strftime(" · %H:%M UTC"),
+                "status": "Published", "published_by": office_users[level]["display_name"],
+            }
+            register_notice(notice, use_model=False)
+
         # --- Published notices: ~10–14 per office, spread over six months
         for level, rep in reps.items():
             topics = TOPICS[level][lang]
@@ -382,14 +402,14 @@ def seed(app: dict[str, Any]) -> None:
                 register_notice(notice, use_model=False)
 
         # --- Community activity on every record of this country
-        records = list(context["records"]) + [app["RECORDS"][n["id"]] for n in app["PUBLISHED_NOTICES"] if n.get("country") == country]
+        records = [app["RECORDS"][n["id"]] for n in app["PUBLISHED_NOTICES"] if n.get("country") == country]
         for record in records:
             key = community_key(country, record["id"])
             is_notice = record["id"].startswith("notice-")
             base_dt = datetime.fromisoformat(next((n["published_at"] for n in app["PUBLISHED_NOTICES"] if n["id"] == record["id"]), iso(rand_dt(150, 30))))
             nb = rng.choice(cfg["areas"])
             # comments
-            n_comments = rng.choice([1, 1, 2, 2, 3, 3, 4, 5, 6, 8]) if is_notice else rng.randint(4, 9)
+            n_comments = rng.choice([1, 1, 2, 2, 3, 3, 4, 5, 6, 8])
             items = []
             for template in rng.sample(COMMENTS[lang], min(n_comments, len(COMMENTS[lang]))):
                 author = rng.choice(residents)
@@ -398,7 +418,7 @@ def seed(app: dict[str, Any]) -> None:
             if items:
                 app["COMMENTS"][key] = items
             # votes
-            voters = rng.sample(residents, min(len(residents), rng.randint(3, 34) if is_notice else rng.randint(18, 40)))
+            voters = rng.sample(residents, min(len(residents), rng.randint(3, 34)))
             helpful_share = rng.uniform(0.45, 0.92)
             votes = {}
             for voter in voters:

@@ -661,12 +661,9 @@ def response_key(country: str, representative_id: str) -> str:
 
 
 def office_records(country: str, representative: dict[str, Any]) -> list[dict[str, Any]]:
-    """Records attributable to one office: topic-mapped fixtures for the
-    country plus published notices whose responsible office is this one."""
-    records = [
-        record for record in COUNTRY_CONTEXTS.get(country, {}).get("records", [])
-        if FIXTURE_RECORD_OFFICE.get(record["id"]) == representative["id"]
-    ]
+    """Records attributable to one office: the published notices whose
+    responsible office is this one."""
+    records: list[dict[str, Any]] = []
     office_names = {representative["name"], representative.get("display_name", "")}
     with PUBLISHED_NOTICES_LOCK:
         notices = [n for n in PUBLISHED_NOTICES if n.get("country") == country and (n.get("responsible_office") in office_names or n.get("office") in office_names)]
