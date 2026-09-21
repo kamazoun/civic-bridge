@@ -25,6 +25,7 @@ const state = {
   repResponses: {},
   repStats: null,
   askUnknown: null,
+  visiting: null,
   feedbackLoadedFor: null,
   groups: [],
   groupTopic: null,
@@ -352,6 +353,9 @@ const STRINGS = {
     home_title: "Stay close to the decisions shaping your area.",
     home_body_no_area: "Choose your country, region, and locality to load the records and representative offices relevant to you.",
     location_set: "LOCATION SET",
+    visiting_note: (area) => `Viewing ${area} for a shared record`,
+    back_to_area: (area) => `Back to ${area}`,
+    set_my_area: "Choose my own area",
     location_needed: "LOCATION NEEDED",
     change_location: "Change location",
     choose_location: "Choose location",
@@ -1012,6 +1016,9 @@ const STRINGS = {
     home_title: "Restez proche des décisions qui concernent votre zone.",
     home_body_no_area: "Choisissez votre pays, votre région et votre localité pour charger les fiches et bureaux représentatifs qui vous concernent.",
     location_set: "ZONE DÉFINIE",
+    visiting_note: (area) => `Vous consultez ${area} pour une fiche partagée`,
+    back_to_area: (area) => `Retour à ${area}`,
+    set_my_area: "Choisir ma zone",
     location_needed: "ZONE À DÉFINIR",
     change_location: "Changer de zone",
     choose_location: "Choisir une zone",
@@ -2081,6 +2088,7 @@ function renderSidebar() {
   if (areaHolder) {
     const professionLabelText = professionLabel();
     areaHolder.innerHTML = `
+      ${state.visiting ? `<button class="visiting-banner" id="stop-visiting"><span>${t("visiting_note", esc(state.dashboard.area))}</span><strong>${state.visiting.area ? t("back_to_area", esc(state.visiting.area)) : t("set_my_area")} →</strong></button>` : ""}
       <button class="sidebar-area-card" data-route="locations">
         <span class="sidebar-area-eyebrow">${hasArea ? t("location_set") : t("location_needed")}</span>
         <strong>${hasArea ? esc(state.dashboard.area) : t("choose_location")}</strong>
@@ -2089,6 +2097,12 @@ function renderSidebar() {
       </button>
       ${state.user ? `<div class="sidebar-account-card"><span class="account-avatar">${esc(state.user.initial || "R")}</span><div><strong>${esc(state.user.label)}</strong>${professionLabelText ? `<small>${esc(professionLabelText)}</small>` : ""}</div></div>` : ""}
     `;
+    const stopVisiting = areaHolder.querySelector("#stop-visiting");
+    if (stopVisiting) stopVisiting.addEventListener("click", () => {
+      const home = state.visiting; state.visiting = null;
+      if (home.area) { state.dashboard.country = home.country; state.dashboard.region = home.region; state.dashboard.area = home.area; applyAreaContext(); location.hash = ""; setRoute("home"); }
+      else { state.dashboard.country = ""; state.dashboard.region = ""; state.dashboard.area = ""; location.hash = ""; setRoute("locations"); }
+    });
   }
   const holder = document.querySelector("#sidebar-records");
   holder.innerHTML = "";
@@ -3085,7 +3099,7 @@ function bindAppActions() {
       showShareModal({ type: targetType, title: targetTitle });
     }
     if (button.dataset.action === "geolocate") requestBrowserLocation();
-    if (button.dataset.action === "set-area") { state.dashboard.area = state.locationLocality || state.locationRegion || state.locationCountry; state.dashboard.region = state.locationRegion || state.locationCountry; state.dashboard.country = state.locationCountry; applyAreaContext(); persistLocation(); setRoute("home"); showToast(t("toast_now_watching", state.dashboard.area)); }
+    if (button.dataset.action === "set-area") { state.visiting = null; state.dashboard.area = state.locationLocality || state.locationRegion || state.locationCountry; state.dashboard.region = state.locationRegion || state.locationCountry; state.dashboard.country = state.locationCountry; applyAreaContext(); persistLocation(); setRoute("home"); showToast(t("toast_now_watching", state.dashboard.area)); }
   }));
 }
 
@@ -3205,9 +3219,10 @@ async function boot() {
     const id = decodeURIComponent(deepLink[1]);
     const notice = state.publishedNotices.find((item) => item.id === id);
     if (notice && notice.country && state.dashboard.country !== notice.country) {
-      state.locationCountry = notice.country; state.locationRegion = notice.region || ""; state.locationLocality = notice.locality || "";
+      // Visiting another country's record: switch the view, never the saved location.
+      state.visiting = state.dashboard.area ? { country: state.dashboard.country, region: state.dashboard.region, area: state.dashboard.area } : { country: "", region: "", area: "" };
       state.dashboard.country = notice.country; state.dashboard.region = notice.region || notice.country; state.dashboard.area = notice.locality || notice.region || notice.country;
-      applyAreaContext(); persistLocation(); shouldAutoDetect = false;
+      applyAreaContext(); shouldAutoDetect = false;
     }
     if (state.records.some((record) => record.id === id)) setRoute("record", id);
   }
