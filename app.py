@@ -1718,7 +1718,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Write a message first.")
             anonymous = bool(data.get("anonymous"))
             persona = " ".join(str(data.get("persona", "")).split())[:80]
-            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous member" if anonymous else user["label"]), "anonymous": anonymous, "message": message, "created_at": now_iso()}
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": (persona or "Anonymous member") if anonymous else user["label"], "anonymous": anonymous, "message": message, "created_at": now_iso()}
             with GROUP_POSTS_LOCK:
                 GROUP_POSTS.setdefault(f"{country}|{topic}", []).insert(0, item)
             save_state()
@@ -1829,7 +1829,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             item = {
                 "id": uuid.uuid4().hex[:10],
                 "user_id": author["id"],
-                "user_label": persona or ("Anonymous resident" if anonymous else author["label"]),
+                "user_label": (persona or "Anonymous resident") if anonymous else author["label"],
                 "anonymous": anonymous,
                 "record_id": record["id"],
                 "record_title": record["title"],
@@ -1861,7 +1861,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Comment is required.")
             anonymous = bool(data.get("anonymous"))
             persona = " ".join(str(data.get("persona", "")).split())[:80]
-            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous resident" if anonymous else user["label"]), "anonymous": anonymous, "speaking_as": " ".join(str(data.get("speaking_as", "")).split())[:60], "type": "Community comment", "message": message, "status": "Published for review", "created_at": now_iso()}
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": (persona or "Anonymous resident") if anonymous else user["label"], "anonymous": anonymous, "speaking_as": " ".join(str(data.get("speaking_as", "")).split())[:60], "type": "Community comment", "message": message, "status": "Published for review", "created_at": now_iso()}
             with COMMENTS_LOCK:
                 COMMENTS.setdefault(key, []).insert(0, item)
             save_state()
@@ -1902,7 +1902,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Add a short label and description first.")
             anonymous = bool(data.get("anonymous"))
             persona = " ".join(str(data.get("persona", "")).split())[:80]
-            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous resident" if anonymous else user["label"]), "anonymous": anonymous, "label": label, "body": body, "submitted": True, "created_at": now_iso()}
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": (persona or "Anonymous resident") if anonymous else user["label"], "anonymous": anonymous, "label": label, "body": body, "submitted": True, "created_at": now_iso()}
             with PERSPECTIVES_LOCK:
                 PERSPECTIVES.setdefault(key, []).append(item)
             save_state()
