@@ -91,6 +91,8 @@ const HELP = {
     concerns_you: "Notices published in the last seven days on a topic that is in your profile. The topic shown is the reason. Everything else is still in the list below — this only lifts what is likely to matter to you.",
     area_questions: "Public questions other residents of your area sent to their offices, newest first, with whether the office has replied since. Every question is public; only the sender's account can be hidden (anonymous).",
     speaking_as: "Optional. Say which situation you speak from — a market trader, a parent, a herder — so the office and other residents can see that the same notice lands differently on different people.",
+    office_card: "The office this notice comes from. Open its page to see everything it publishes, the questions it receives and how often it answers — or follow it.",
+    office_notices: "Everything this office has published for your area, newest first. Follow the office to bring its new notices to the top of your overview.",
     questions: "Questions residents sent to this office through the record. They are public, so the office's answer — or its silence — is visible to everyone. The office replies with its right of reply.",
     home: "Your front page. Top: the records most relevant to you. Right: the offices responsible in your area. Below: everything on the record for your area, newest first.",
     public_view: "You are reading without an account. Everything is visible; sign in only when you want to ask an office, comment, vote or join a group.",
@@ -150,6 +152,8 @@ const HELP = {
     concerns_you: "Les avis publiés ces sept derniers jours sur un thème de votre profil. Le thème affiché en est la raison. Tout le reste est toujours dans la liste en dessous — ceci ne fait que remonter ce qui a des chances de vous concerner.",
     area_questions: "Les questions publiques que d’autres résidents de votre zone ont envoyées à leurs bureaux, du plus récent au plus ancien, avec l’indication d’une réponse. Chaque question est publique ; seul le compte de l’auteur peut être masqué (anonyme).",
     speaking_as: "Facultatif. Dites depuis quelle situation vous parlez — commerçant·e, parent, éleveur·se — pour que le bureau et les autres résidents voient que le même avis ne touche pas tout le monde de la même façon.",
+    office_card: "Le bureau dont vient cet avis. Ouvrez sa page pour voir tout ce qu’il publie, les questions qu’il reçoit et sa fréquence de réponse — ou suivez-le.",
+    office_notices: "Tout ce que ce bureau a publié pour votre zone, du plus récent au plus ancien. Suivez le bureau pour faire remonter ses nouveaux avis en haut de votre page d’accueil.",
     questions: "Les questions que les résidents ont envoyées à ce bureau via la fiche. Elles sont publiques : la réponse du bureau — ou son silence — est visible de tous. Le bureau répond par son droit de réponse.",
     home: "Votre page d’accueil. En haut : les fiches les plus pertinentes pour vous. À droite : les bureaux responsables de votre zone. En bas : tout ce qui est au dossier pour votre zone, du plus récent au plus ancien.",
     public_view: "Vous consultez sans compte. Tout est visible ; connectez-vous seulement pour interroger un bureau, commenter, voter ou rejoindre un groupe.",
@@ -657,6 +661,15 @@ const STRINGS = {
     area_questions_eyebrow: (area) => `WHAT OTHER RESIDENTS OF ${area} HAVE ASKED`,
     no_area_questions: "No question sent in your area yet.",
     open_record_arrow: "Open the record →",
+    office_card_eyebrow: "WHO IS RESPONSIBLE FOR THIS NOTICE",
+    open_office_page: "Open the office's page →",
+    follow_hint: "Follow an office and its new notices come to you first, marked “Concerns you”.",
+    also_by_office: "ALSO FROM THIS OFFICE",
+    office_notices_eyebrow: "WHAT THIS OFFICE IS WORKING ON",
+    office_notices_title: "Its latest notices.",
+    no_office_notices: "This office has not published anything yet.",
+    why_follow: (office, points) => `You follow ${office}: +${points}.`,
+    followed_office_reason: "office you follow",
     community_view_eyebrow: "COMMUNITY VIEW",
     community_view_title: "Keep agreement and difference visible.",
     community_view_body: "A useful summary shows what is shared, what is unanswered, and where priorities differ.",
@@ -1319,6 +1332,15 @@ const STRINGS = {
     area_questions_eyebrow: (area) => `CE QUE D’AUTRES RÉSIDENTS DE ${area} ONT DEMANDÉ`,
     no_area_questions: "Aucune question envoyée dans votre zone pour l’instant.",
     open_record_arrow: "Ouvrir la fiche →",
+    office_card_eyebrow: "QUI EST RESPONSABLE DE CET AVIS",
+    open_office_page: "Ouvrir la page du bureau →",
+    follow_hint: "Suivez un bureau : ses nouveaux avis vous arrivent en premier, marqués « Vous concerne ».",
+    also_by_office: "AUSSI DE CE BUREAU",
+    office_notices_eyebrow: "CE SUR QUOI TRAVAILLE CE BUREAU",
+    office_notices_title: "Ses derniers avis.",
+    no_office_notices: "Ce bureau n’a encore rien publié.",
+    why_follow: (office, points) => `Vous suivez ${office} : +${points}.`,
+    followed_office_reason: "bureau suivi",
     community_view_eyebrow: "VUE COMMUNAUTAIRE",
     community_view_title: "Gardez visibles les accords et les désaccords.",
     community_view_body: "Un bon résumé montre ce qui est partagé, ce qui reste sans réponse, et où les priorités diffèrent.",
@@ -1624,23 +1646,26 @@ function professionLabel() {
   return (state.preferences.interests || []).slice(0, 2).map((topic) => names[topic] || topic).join(" · ");
 }
 function professionWeight(issue) {
-  const topic = issueTopic(typeof issue === "string" ? { id: issue } : issue);
-  if (!topic) return 0;
-  return interestWeight(topic) + ((AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0);
+  const item = typeof issue === "string" ? { id: issue } : issue;
+  const topic = issueTopic(item);
+  const topicPoints = topic ? interestWeight(topic) + ((AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0) : 0;
+  return topicPoints + (followedOfficeFor(item) ? FOLLOW_POINTS : 0);
 }
 // "Why am I seeing this?" — the whole chain in the person's own terms.
 function rankingExplanation(issue) {
   const topic = issueTopic(issue);
-  if (!topic) return "";
   const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
-  const fromInterest = interestWeight(topic);
-  const fromAge = (AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0;
-  if (!fromInterest && !fromAge) return "";
+  const fromInterest = topic ? interestWeight(topic) : 0;
+  const fromAge = topic ? (AGE_TOPIC_WEIGHTS[state.preferences.age] || {})[topic] || 0 : 0;
+  const followRep = followedOfficeFor(issue);
+  const fromFollow = followRep ? FOLLOW_POINTS : 0;
+  if (!fromInterest && !fromAge && !fromFollow) return "";
   const parts = [];
   const understood = (state.preferences.understood || professionLabel()).replace(/^(we understood|nous avons compris)\s*:\s*/i, "");
   if (fromInterest) parts.push(t("why_interest", names[topic] || topic, fromInterest, state.preferences.description ? `“${state.preferences.description}”` : "", understood));
   if (fromAge) parts.push(t("why_age", t(AGE_RANGES.find((item) => item.id === state.preferences.age)?.key || "age_18_29"), fromAge));
-  return `<details class="why-panel"><summary>${t("why_am_i_seeing_this")}</summary><div><p>${parts.join(" ")}</p><p class="why-total">${t("why_total", fromInterest + fromAge)}</p><p class="why-fixed">${t("why_fixed_weights")}</p><span class="text-btn link-span" data-route="settings" role="link" tabindex="0">${t("why_correct_it")}</span></div></details>`;
+  if (fromFollow) parts.push(t("why_follow", representativeName(followRep), fromFollow));
+  return `<details class="why-panel"><summary>${t("why_am_i_seeing_this")}</summary><div><p>${parts.join(" ")}</p><p class="why-total">${t("why_total", fromInterest + fromAge + fromFollow)}</p><p class="why-fixed">${t("why_fixed_weights")}</p><span class="text-btn link-span" data-route="settings" role="link" tabindex="0">${t("why_correct_it")}</span></div></details>`;
 }
 
 function rankForProfile(issues) {
@@ -1717,6 +1742,25 @@ function anonymousPersona() {
   const where = state.dashboard.area || state.dashboard.country || "";
   if (uiLang() === "fr") return first ? `Un·e résident·e de ${where} (${names[first]})` : `Un·e résident·e de ${where}`;
   return first ? `A resident of ${where} (${names[first]})` : `A resident of ${where}`;
+}
+
+// Notices an office has published in the current country, newest first.
+function officeNotices(rep, excludeId = "") {
+  return state.publishedNotices
+    .filter((notice) => notice.id !== excludeId && (!notice.country || notice.country === state.dashboard.country) && (notice.responsible_office === rep.name || notice.office === rep.display_name))
+    .sort((a, b) => String(b.published_at || "").localeCompare(String(a.published_at || "")));
+}
+function officeForRecord(record) {
+  const office = responsibleOffice(record);
+  return office.id ? state.representatives.find((rep) => rep.id === office.id) || null : null;
+}
+// Following an office lifts its notices: a fixed, visible +2.
+const FOLLOW_POINTS = 2;
+function followedOfficeFor(issue) {
+  if (!state.followedRepresentatives.size) return null;
+  const notice = state.publishedNotices.find((item) => item.id === issue.id);
+  if (!notice) return null;
+  return state.representatives.find((rep) => state.followedRepresentatives.has(rep.id) && (rep.name === notice.responsible_office || rep.display_name === notice.office)) || null;
 }
 
 function representativeName(rep) {
@@ -2383,17 +2427,17 @@ function wireRepresentativeControls() {
 // Notices published in the last seven days that match the profile, with the
 // topic that makes them relevant. This is where "it concerns you" pops.
 function concernsYouStrip() {
-  if (!hasProfession()) return "";
+  if (!hasProfession() && !state.followedRepresentatives.size) return "";
   const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
   const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
   const hits = state.publishedNotices
     .filter((notice) => notice.country === state.dashboard.country && Date.parse(notice.published_at || "") > cutoff)
-    .map((notice) => ({ notice, topic: issueTopic(publisherRecord(notice)), score: professionWeight(publisherRecord(notice)) }))
+    .map((notice) => { const record = publisherRecord(notice); const topic = issueTopic(record); return { notice, topic: topic && interestWeight(topic) > 0 ? topic : followedOfficeFor(record) ? "__followed" : topic, score: professionWeight(record) }; })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || Date.parse(b.notice.published_at) - Date.parse(a.notice.published_at))
     .slice(0, 3);
   if (!hits.length) return "";
-  return `<section class="concerns-you"><div class="concerns-head"><span class="eyebrow">${t("concerns_you_eyebrow")} ${help("concerns_you")}</span><small>${t("concerns_you_note")}</small></div>${hits.map(({ notice, topic }) => `<button class="concerns-row" data-record="${esc(notice.id)}"><span class="concerns-topic">${esc(names[topic] || topic)}</span><span><strong>${esc(notice.title)}</strong><small>${esc(notice.office || notice.responsible_office || "")} · ${esc(formatActivityDate(notice.published_at))}</small></span><span class="watch-arrow">↗</span></button>`).join("")}</section>`;
+  return `<section class="concerns-you"><div class="concerns-head"><span class="eyebrow">${t("concerns_you_eyebrow")} ${help("concerns_you")}</span><small>${t("concerns_you_note")}</small></div>${hits.map(({ notice, topic }) => `<button class="concerns-row" data-record="${esc(notice.id)}"><span class="concerns-topic">${esc(topic === "__followed" ? t("followed_office_reason") : names[topic] || topic)}</span><span><strong>${esc(notice.title)}</strong><small>${esc(notice.office || notice.responsible_office || "")} · ${esc(formatActivityDate(notice.published_at))}</small></span><span class="watch-arrow">↗</span></button>`).join("")}</section>`;
 }
 
 function recordListMarkup(issues) {
@@ -2569,6 +2613,7 @@ function renderRepresentativeDetail() {
     <section class="rep-detail-header"><div class="rep-photo"><img src="${esc(representativeProfile(rep).photo)}" alt="${esc(representativeName(rep))}" onerror="this.onerror=null;this.src='${esc(representativeProfile(rep).fallback)}'" /></div><div class="rep-detail-copy"><span class="rep-level">${t("office_level_suffix", esc(rep.level))}</span><h1>${esc(representativeName(rep))}</h1><p>${esc(rep.name)} · ${esc(rep.role)} · ${esc(representativeLocality(rep))} · ${esc(rep.coverage)}</p><div class="rep-detail-actions"><button class="follow-btn ${state.followedRepresentatives.has(rep.id) ? "followed" : ""}" data-follow-detail="${esc(rep.id)}">${state.followedRepresentatives.has(rep.id) ? t("following") : t("follow_office")}</button><button class="secondary-btn" data-action="share-representative" data-share-title="${esc(representativeName(rep))}">${t("share_profile")}</button><span class="verified-label">${t("public_profile_verified")}</span></div></div></section>
     <div class="rep-stat-grid"><article class="rep-stat-card"><span>${t("stat_card_commitments")} ${help("records_on_file")}</span><strong>${rep.commitments}</strong><small>${t("stat_card_commitments_detail")}</small></article><article class="rep-stat-card"><span>${t("list_questions_received")} ${help("questions")}</span><strong>${rep.questions_received || 0}</strong><small>${t("stat_card_questions_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_response_rate")} ${help("response_rate")}</span><strong>${pctText(rep.response_rate)}</strong><small>${t("stat_card_response_rate_detail")}</small></article><article class="rep-stat-card"><span>${t("stat_card_community_pulse")} ${help("community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong><small>${t("stat_card_community_pulse_detail")}</small></article></div>
     <section class="section-grid rep-detail-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">${t("public_record_eyebrow")} ${help("public_record")}</span><h2>${t("public_record_title")}</h2></div><span class="live-pill"><i></i> ${t("activity_statistics")}</span></div><p class="panel-intro">${t("public_record_body")}</p><div class="bar-list"><div class="bar-row"><div><span>${t("bar_questions_answered")}</span><strong>${pctText(rep.response_rate)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.response_rate)}%"></span></div></div><div class="bar-row"><div><span>${t("bar_community_pulse")}</span><strong>${pctText(rep.community_pulse)}</strong></div><div class="bar-track"><span style="width:${pctWidth(rep.community_pulse)}%"></span></div></div></div><div class="public-record-list"><div><span>${t("list_last_update")}</span><strong>${esc(rep.last_update)}</strong></div><div><span>${t("list_questions_received")}</span><strong>${rep.questions_received}</strong></div><div><span>${t("list_updates_issued")}</span><strong>${rep.updates_issued}</strong></div><div><span>${t("list_office_replies")}</span><strong>${rep.responses_on_file || 0}</strong></div></div><p class="rep-bio">${esc(rep.bio)}</p></article><aside class="panel right-reply"><span class="eyebrow">${t("right_of_reply_eyebrow")} ${help("right_of_reply")}</span><h2>${t("right_of_reply_title")}</h2><p class="panel-intro">${t("right_of_reply_body")}</p>${userRole() === "office" ? `<label class="form-label" for="rep-response-type">${t("response_type_label")}</label><select id="rep-response-type" class="feedback-select"><option>${t("response_type_correct")}</option><option>${t("response_type_context")}</option><option>${t("response_type_source")}</option></select><label class="form-label" for="rep-response">${t("office_response_label")}</label><textarea id="rep-response" class="feedback-textarea" placeholder="${t("office_response_placeholder")}"></textarea><button class="primary-btn" id="submit-rep-response">${t("submit_response")}</button><p class="disclaimer">${t("response_disclaimer")}</p>` : `<p class="disclaimer office-only-note">${t("office_only_reply")}</p>`}<div class="reply-list"><span class="eyebrow">${t("questions_received_eyebrow")} ${help("questions")}</span>${(rep.questions || []).length ? (rep.questions || []).map((item) => `<div class="reply-item question-item"><strong>${esc(item.user_label)} · ${esc(formatActivityDate(item.created_at))}</strong><p>${esc(item.question || item.draft)}</p><small>${esc(item.record_title)}</small>${userRole() === "office" ? `<button class="text-btn" data-reply-to="${esc((item.question || item.draft).slice(0, 120))}">${t("reply_to_this")}</button>` : ""}</div>`).join("") : `<div class="empty-reply">${t("no_questions_received")}</div>`}</div><div class="reply-list"><span class="eyebrow">${t("responses_on_file_eyebrow")} ${help("responses")}</span>${responses.length ? responses.map((item) => `<div class="reply-item"><strong>${esc(item.type || t("office_response_fallback"))}</strong><p>${esc(item.message)}</p><small>${esc(item.user_label || t("office_response_fallback"))} · ${esc(item.status)} · ${esc(formatActivityDate(item.created_at))}</small></div>`).join("") : `<div class="empty-reply">${t("no_response_yet")}</div>`}</div></aside></section>
+    <article class="panel" style="margin-top:18px"><span class="eyebrow">${t("office_notices_eyebrow")} ${help("office_notices")}</span><h2>${t("office_notices_title")}</h2><p class="field-hint">${t("follow_hint")}</p>${(() => { const list = officeNotices(rep).slice(0, 6); return list.length ? list.map((notice) => `<button class="watch-row" data-record="${esc(notice.id)}"><span><strong>${esc(notice.title)}</strong><small>${esc(notice.category || "")} · ${esc(formatActivityDate(notice.published_at))}</small></span><span class="watch-arrow">↗</span></button>`).join("") : `<div class="empty-state">${t("no_office_notices")}</div>`; })()}</article>
     <article class="panel" style="margin-top:18px"><span class="eyebrow">${t("track_record_eyebrow")} ${help("track_record")}</span><h2>${t("track_record_title")}</h2><ul class="fact-list">${representativeTrackRecord(rep).map((entry) => `<li>${esc(entry)}</li>`).join("")}</ul></article>
   `;
 }
@@ -2662,8 +2707,16 @@ function renderFeedback(record) {
   `;
 }
 
+function officeCardForRecord(record) {
+  const rep = officeForRecord(record);
+  if (!rep) return "";
+  const others = officeNotices(rep, record.id).slice(0, 3);
+  const followed = state.followedRepresentatives.has(rep.id);
+  return `<section class="panel office-card-panel"><span class="eyebrow">${t("office_card_eyebrow")} ${help("office_card")}</span><div class="office-card-row"><img src="${esc(representativeProfile(rep).photo)}" alt="" onerror="this.onerror=null;this.src='${esc(representativeProfile(rep).fallback)}'" /><div><h2>${esc(representativeName(rep))}</h2><p class="panel-intro">${esc(rep.level)} · ${esc(rep.focus)}</p><div class="button-row"><button class="primary-btn" data-rep-detail="${esc(rep.id)}">${t("open_office_page")}</button><button class="follow-btn ${followed ? "followed" : ""}" data-follow-detail="${esc(rep.id)}">${followed ? t("following") : t("follow_office")}</button></div><p class="field-hint">${t("follow_hint")}</p></div></div>${others.length ? `<span class="eyebrow" style="display:block;margin-top:14px">${t("also_by_office")}</span>${others.map((notice) => `<button class="watch-row" data-record="${esc(notice.id)}"><span><strong>${esc(notice.title)}</strong><small>${esc(notice.category || "")} · ${esc(formatActivityDate(notice.published_at))}</small></span><span class="watch-arrow">↗</span></button>`).join("")}` : ""}</section>`;
+}
+
 function renderRepresentative(record) {
-  return `<div class="section-grid"><article class="panel"><span class="eyebrow">${t("timeline_eyebrow")} ${help("timeline")}</span><h2>${t("timeline_title")}</h2><p class="panel-intro">${t("timeline_body")}</p><div class="timeline">${record.timeline.map((item) => `<div class="timeline-item ${item.state}"><span class="timeline-dot"></span><span class="timeline-date">${esc(item.date)}</span><div class="timeline-label">${esc(item.label)}</div><p class="timeline-detail">${esc(item.detail)}</p></div>`).join("")}</div></article><aside class="panel"><span class="eyebrow">${t("accountability_check_eyebrow")}</span><div class="promise-card"><small>${t("current_status")}</small><strong>${esc(record.status_detail)}</strong><p>${t("accountability_note")}</p></div><div class="list-block"><h3>${t("resident_can_request")}</h3><ul class="fact-list unknown"><li>${t("request_dated_update")}</li><li>${t("request_responsible_office")}</li><li>${t("request_evidence")}</li></ul></div></aside></div>`;
+  return `${officeCardForRecord(record)}<div class="section-grid" style="margin-top:18px"><article class="panel"><span class="eyebrow">${t("timeline_eyebrow")} ${help("timeline")}</span><h2>${t("timeline_title")}</h2><p class="panel-intro">${t("timeline_body")}</p><div class="timeline">${record.timeline.map((item) => `<div class="timeline-item ${item.state}"><span class="timeline-dot"></span><span class="timeline-date">${esc(item.date)}</span><div class="timeline-label">${esc(item.label)}</div><p class="timeline-detail">${esc(item.detail)}</p></div>`).join("")}</div></article><aside class="panel"><span class="eyebrow">${t("accountability_check_eyebrow")}</span><div class="promise-card"><small>${t("current_status")}</small><strong>${esc(record.status_detail)}</strong><p>${t("accountability_note")}</p></div><div class="list-block"><h3>${t("resident_can_request")}</h3><ul class="fact-list unknown"><li>${t("request_dated_update")}</li><li>${t("request_responsible_office")}</li><li>${t("request_evidence")}</li></ul></div></aside></div>`;
 }
 
 

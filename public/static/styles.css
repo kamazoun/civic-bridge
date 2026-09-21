@@ -723,3 +723,8 @@ a { color: inherit; text-decoration: none; }
 .ask-path { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin: 0 0 18px; padding: 14px 16px; border: 1px solid #cfdcd3; border-radius: 12px; background: #eef4ef; }
 .ask-path strong { display: block; color: var(--pine-2); font-size: 14px; }
 .ask-path p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+/* Office behind a notice */
+.office-card-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 8px; }
+.office-card-row img { width: 76px; height: 76px; border-radius: 14px; object-fit: cover; }
+.office-card-row h2 { margin: 0 0 4px; }
+.office-card-row .button-row { margin-top: 10px; }
