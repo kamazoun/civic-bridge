@@ -427,10 +427,13 @@ def seed(app: dict[str, Any]) -> None:
                     choice = ["helpful", "needs-clarity"]
                 votes[voter["id"]] = choice
             app["VOTES"][key] = votes
-            # perspectives
+            # comments spoken "as" a group (what used to be a separate perspective)
             for label, body in rng.sample(PERSPECTIVES[lang], rng.choice([0, 0, 1, 1, 2])):
                 author = rng.choice(residents)
-                app["PERSPECTIVES"].setdefault(key, []).append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": author["id"], "user_label": author["display_name"], "label": fill(label, nb=nb), "body": fill(body, nb=nb), "submitted": True, "created_at": iso(base_dt + timedelta(days=rng.uniform(0.5, 25)))})
+                items.append({"id": uuid.UUID(int=rng.getrandbits(128)).hex[:10], "user_id": author["id"], "user_label": author["display_name"], "speaking_as": fill(label, nb=nb), "type": "Community comment", "message": fill(body, nb=nb), "status": "Published for review", "created_at": iso(base_dt + timedelta(days=rng.uniform(0.5, 25)))})
+            items.sort(key=lambda item: item["created_at"], reverse=True)
+            if items:
+                app["COMMENTS"][key] = items
             # feedback drafts
             for template in rng.sample(FEEDBACK_DRAFTS[lang], rng.choice([0, 0, 0, 1, 1, 2])):
                 draft = fill(template, nb=nb, d1=fmt_date(base_dt, lang))

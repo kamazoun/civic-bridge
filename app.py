@@ -1861,7 +1861,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return self.send_error_json("Comment is required.")
             anonymous = bool(data.get("anonymous"))
             persona = " ".join(str(data.get("persona", "")).split())[:80]
-            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous resident" if anonymous else user["label"]), "anonymous": anonymous, "type": "Community comment", "message": message, "status": "Published for review", "created_at": now_iso()}
+            item = {"id": uuid.uuid4().hex[:10], "user_id": user["id"], "user_label": persona or ("Anonymous resident" if anonymous else user["label"]), "anonymous": anonymous, "speaking_as": " ".join(str(data.get("speaking_as", "")).split())[:60], "type": "Community comment", "message": message, "status": "Published for review", "created_at": now_iso()}
             with COMMENTS_LOCK:
                 COMMENTS.setdefault(key, []).insert(0, item)
             save_state()
