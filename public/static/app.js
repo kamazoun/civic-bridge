@@ -661,6 +661,7 @@ const STRINGS = {
     area_questions_eyebrow: (area) => `WHAT OTHER RESIDENTS OF ${area} HAVE ASKED`,
     no_area_questions: "No question sent in your area yet.",
     open_record_arrow: "Open the record →",
+    published_by: "Published by — open the office's page",
     office_card_eyebrow: "WHO IS RESPONSIBLE FOR THIS NOTICE",
     open_office_page: "Open the office's page →",
     follow_hint: "Follow an office and its new notices come to you first, marked “Concerns you”.",
@@ -1332,6 +1333,7 @@ const STRINGS = {
     area_questions_eyebrow: (area) => `CE QUE D’AUTRES RÉSIDENTS DE ${area} ONT DEMANDÉ`,
     no_area_questions: "Aucune question envoyée dans votre zone pour l’instant.",
     open_record_arrow: "Ouvrir la fiche →",
+    published_by: "Publié par — ouvrir la page du bureau",
     office_card_eyebrow: "QUI EST RESPONSABLE DE CET AVIS",
     open_office_page: "Ouvrir la page du bureau →",
     follow_hint: "Suivez un bureau : ses nouveaux avis vous arrivent en premier, marqués « Vous concerne ».",
@@ -2628,7 +2630,7 @@ function renderRecord() {
     <button class="breadcrumb" data-route="home">${t("back_to_records")}</button>
     <section class="record-header">
       <div><span class="case-kicker">${esc(record.category)} · ${esc(record.location)}</span><h1>${esc(record.title)}</h1><p>${esc(record.summary)}</p></div>
-      <div class="record-status"><div class="status-line"><span class="status-check">✓</span>${esc(record.status)} ${record.provenance_status === "published" ? help("not_verified") : ""}</div><small>${esc(record.source_label)}<br />${t("last_checked", esc(record.source_date))} · ${esc(record.status_detail)}</small><button class="secondary-btn share-source" data-action="share-source" data-share-title="${esc(record.title)}" data-share-type="${esc(record.category)}">${t("share_source")}</button></div>
+      <div class="record-status"><div class="status-line"><span class="status-check">✓</span>${esc(record.status)} ${record.provenance_status === "published" ? help("not_verified") : ""}</div><small>${esc(record.source_label)}<br />${t("last_checked", esc(record.source_date))} · ${esc(record.status_detail)}</small>${(() => { const rep = officeForRecord(record); return rep ? `<button class="record-office" data-rep-detail="${esc(rep.id)}"><img src="${esc(representativeProfile(rep).photo)}" alt="" onerror="this.onerror=null;this.src='${esc(representativeProfile(rep).fallback)}'" /><span><small>${t("published_by")}</small><strong>${esc(representativeName(rep))}</strong></span><span class="watch-arrow">↗</span></button>` : ""; })()}<button class="secondary-btn share-source" data-action="share-source" data-share-title="${esc(record.title)}" data-share-type="${esc(record.category)}">${t("share_source")}</button></div>
     </section>
     <nav class="tabs" aria-label="Record sections">${tabs.map((tab) => `<button class="tab ${state.tab === tab ? "active" : ""}" data-tab="${tab}">${tab === "overview" ? t("tab_evidence") : tab === "feedback" ? t("tab_feedback") : tab === "representative" ? t("tab_representative") : t("tab_channels")}</button>`).join("")}</nav>
         <p class="tab-hint">${t("tab_evidence")} ${help("tab_evidence")} · ${t("tab_feedback")} ${help("tab_feedback")} · ${t("tab_representative")} ${help("tab_representative")}</p>
