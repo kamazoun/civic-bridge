@@ -876,7 +876,7 @@ const STRINGS = {
     stop_listening: "Stop",
     settings_aside_eyebrow: "WHAT THIS CHANGES",
     settings_aside_title: "Where these preferences show up.",
-    settings_aside_body: "Your topics reorder the Overview and Issues so what concerns you surfaces first, and decide which groups are yours. Every record shows “Why am I seeing this here?” with the exact points. Age band adds a small life-stage weight. Reading comfort sets whether a record opens as text or offers to read itself aloud; preferred language pre-selects translation. Nothing is inferred from your behaviour and nothing sensitive is kept.",
+    settings_aside_body: "Your topics reorder the Overview so what concerns you surfaces first, and decide which groups are yours. Every record shows “Why am I seeing this here?” with the exact points. Age band adds a small life-stage weight. Reading comfort sets whether a record opens as text or offers to read itself aloud; preferred language pre-selects translation. Nothing is inferred from your behaviour and nothing sensitive is kept.",
     // AI connection status
     ai_status_missing_title: "Local AI isn't connected.",
     ai_status_missing_body: "Translation, read-aloud, structured feedback drafts, and “Explain a source” all need it. In a terminal, run:",
@@ -1537,7 +1537,7 @@ const STRINGS = {
     stop_listening: "Arrêter",
     settings_aside_eyebrow: "CE QUE CELA CHANGE",
     settings_aside_title: "Où ces préférences apparaissent.",
-    settings_aside_body: "Vos thèmes réorganisent la Vue d’ensemble et les Dossiers pour que ce qui vous concerne apparaisse en premier, et déterminent vos groupes. Chaque fiche affiche « Pourquoi je vois ceci ici ? » avec les points exacts. La tranche d’âge ajoute une petite pondération d’étape de vie. Le confort de lecture détermine si une fiche s’ouvre en texte ou se lit à voix haute ; la langue préférée présélectionne la traduction. Rien n’est déduit de votre comportement et rien de sensible n’est conservé.",
+    settings_aside_body: "Vos thèmes réorganisent la Vue d’ensemble pour que ce qui vous concerne apparaisse en premier, et déterminent vos groupes. Chaque fiche affiche « Pourquoi je vois ceci ici ? » avec les points exacts. La tranche d’âge ajoute une petite pondération d’étape de vie. Le confort de lecture détermine si une fiche s’ouvre en texte ou se lit à voix haute ; la langue préférée présélectionne la traduction. Rien n’est déduit de votre comportement et rien de sensible n’est conservé.",
     ai_status_missing_title: "L'IA locale n'est pas connectée.",
     ai_status_missing_body: "La traduction, la lecture audio, les brouillons de retour structurés et « Expliquer une source » en ont besoin. Dans un terminal, exécutez :",
     ai_status_missing_command: "ollama serve\nCIVIC_BRIDGE_OLLAMA_MODEL=<votre-modèle> ./run_demo.sh",
