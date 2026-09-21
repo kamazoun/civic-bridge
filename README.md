@@ -23,6 +23,7 @@ Plain-language explanation beside the original source, with *what the document d
 ## Table of contents
 
 1. [Quick start](#1-quick-start)
+   - 1.1 [Demo accounts](#11-demo-accounts)
 2. [Installation](#2-installation)
    - 2.1 [Native installation with Ollama](#21-native-installation-with-ollama)
    - 2.2 [Docker](#22-docker)
@@ -54,6 +55,27 @@ CIVIC_BRIDGE_OLLAMA_MODEL=gemma4 python3 app.py
 ```
 
 Open <http://127.0.0.1:8000>. The Public Information Portal is at <http://127.0.0.1:8000/publisher>.
+
+### 1.1 Demo accounts
+
+Accounts are a username and a password; no e-mail is collected. Every seeded account uses the password `civic2026` — change `DEMO_PASSWORD` in `seed_data.py` and delete `data/state.json` before any deployment where that matters.
+
+| Username | Role | Use |
+|---|---|---|
+| `resident` | Resident | Comment, vote, ask an office a question, post in groups |
+| `office` | Representative office | Publish notices on `/publisher`, reply on any office page |
+
+One office account per level of government, closest level first:
+
+| Country | Level 1 | Level 2 | Level 3 | Level 4 |
+|---|---|---|---|---|
+| Togo | `office.golfe1` | `office.prefecture-golfe` | `office.region-maritime` | `office.togo-national` |
+| Côte d'Ivoire | `office.abobo` | `office.district-abidjan` | `office.region-abidjan` | `office.ci-national` |
+| Kenya | `office.nairobi-ward` | `office.nairobi-constituency` | `office.nairobi-county` | `office.kenya-national` |
+| Ghana | `office.tamale-electoral` | `office.tamale-assembly` | `office.northern-rcc` | `office.tamale-north` |
+| Nigeria | `office.lagos-ward` | `office.lagos-lga` | `office.lagos-state` | `office.lagos-federal` |
+
+About 45–50 fictional residents per country (`first.last`, e.g. `sika.kuevi` in Lomé, `zawadi.njoroge` in Nairobi) author the seeded activity. Accounts live in `$CIVIC_BRIDGE_DATA_DIR/state.json` (default `./data/state.json`); deleting the file resets the platform to the seeded state on the next start.
 
 ## 2. Installation
 
@@ -180,13 +202,13 @@ All configuration is by environment variable.
 
 **Voice — not an assistant.** Two buttons, nothing that talks back. *Read this record to me* uses the phone's own speech synthesis with per-language voice detection (`SPEECH_LANG_CODES`, and an honest message when a language has no installed voice). *Say your question instead of typing* uses speech recognition to put the resident's spoken words into the question box — the question then goes to a human office through the same path as a typed one. No conversational agent exists in the product; the local model only rewrites, translates and extracts, and every output it produces is labelled for review.
 
-**Access channels.** Subscriptions by WhatsApp, SMS, email, and voice call, plus community join cards. Records carry per-channel wording (`web`, `voice`, `text`).
+**Sharing.** A notice or a group can be shared by WhatsApp, SMS or a copied link, and shares are counted. Records also carry per-channel wording (`web`, `voice`, `text`) for the voice and text channels, which are not built yet: an SMS gateway for people without internet is the next step.
 
-**Public Information Portal.** `/publisher` is the office side: rendered as the official information portal of the selected country's region, in its administrative language and flag colours (`PORTALS` in `publisher.js`) — the state and motto, the issuing body, notices filterable by subject, an office directory with each office's remit and live counts, and an officers' workspace where signed-in office accounts publish. A published notice enters the public record at once and becomes a record in the app whose facts and *unknowns are read from the notice's own text* — by the local model at publication when connected (`derive_notice_content`), otherwise by sentence heuristics keyed on uncertainty phrases in the notice's language ("n'est pas encore fixé", "to be confirmed"…) — so "what the source does not say" is never boilerplate; the record is labelled *published by the office · not independently verified*. Every portal card deep-links to its record (`/#record/{id}`). The ingestion contract is described in [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md).
+**Public Information Portal.** `/publisher` is the office side: rendered as the official information portal of the selected country's region, in its administrative language and flag colours (`PORTALS` in `publisher.js`) — the state and motto, the issuing body, notices filterable by subject, an office directory with each office's remit and live counts, and an officers' workspace where signed-in office accounts publish. A published notice enters the public record at once and becomes a record in the app whose facts and *unknowns are read from the notice's own text* — by the local model at publication when connected (`derive_notice_content`), otherwise by sentence heuristics keyed on uncertainty phrases in the notice's language ("n'est pas encore fixé", "to be confirmed"…) — so "what the source does not say" is never boilerplate; the record is labelled *published by the office · not independently verified*. Every portal card deep-links to its record (`/#record/{id}`).
 
 **Community.** Independent *Helpful* / *Needs more clarity* toggles, comments, resident-authored perspectives, share. Community data is scoped per country, so the same reference record carries different conversations in Lomé and Nairobi.
 
-**Accounts.** Username + password sign-up and sign-in (PBKDF2-SHA256, server-side session tokens, standard library only — no e-mail, no external identity provider). Two roles: resident and representative office. Publishing notices and posting a right of reply require an office account. Demo accounts `resident` and `office` (password `civic2026`) sign in with one click; the seeded office accounts per country are listed in [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
+**Accounts.** Username + password sign-up and sign-in (PBKDF2-SHA256, server-side session tokens, standard library only — no e-mail, no external identity provider). Two roles: resident and representative office. Publishing notices and posting a right of reply require an office account. Demo accounts `resident` and `office` (password `civic2026`) sign in with one click; the seeded office accounts per country are listed under [Demo accounts](#11-demo-accounts).
 
 **Seeded platform.** On first start `seed_data.py` populates every country with about 50 accounts, 45–55 published notices per country dated over the previous six months, comments, votes, perspectives, feedback drafts, office replies and shares — deterministic, so every fresh deployment shows the same living platform. Everything seeded is fictional and labelled as such.
 
@@ -351,9 +373,7 @@ public/
   static/publisher.css         Portal styles
   static/images/               Office portraits
 docs/
-  ACCOUNTS.md                  Demo and seeded office accounts
-  DATA_PIPELINE.md             Ingestion design and feed contract
-  COUNTRY_SOURCE_PACK.md       Reference public documents per country
+  AI_BUILD_LOG.md              How AI coding tools were used to build this
 ```
 
 ## 8. Licence

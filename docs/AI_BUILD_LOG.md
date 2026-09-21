@@ -4,10 +4,10 @@ The idea, the civic framing, the country choices and the product decisions are m
 
 ## Tools
 
-- **Claude Code** (Anthropic; Claude Opus 5) in the terminal, against this repository, for most of the implementation, browser-driven verification and documentation.
+- **Claude Code** (Anthropic; Claude Opus 5) in the terminal, against this repository, for most of the implementation, browser-driven verification and documentation; later also to lay out the pitch deck from my notes and to edit the demo video (subtitles, zooms, title and closing cards) around my own recording.
 - **OpenAI Codex** for earlier passes on the interface.
 - **Ollama** with `gemma4` locally as the product's own model (translation, drafts, source explanation, profile interpretation) — not a build tool, but the reason no hosted AI provider is involved.
-- **Google Flow** for the representative portraits (fictional people, prompts in `docs/REPRESENTATIVE_PORTRAIT_PROMPTS.md`) and demo-video footage.
+- **Google Flow** for the representative portraits (fictional people) and the illustration clips in the demo video.
 
 ## Working method
 
@@ -29,7 +29,7 @@ Representative sessions, in order:
 ## What I did not use the tools for
 
 - Choosing the problem, the tracks, the countries or the institutional hierarchies.
-- Writing the pitch narrative.
+- Recording the demo: the walkthrough and the narration are mine.
 - Generating any "real" government content — every record and notice is labelled illustrative.
 
 ## Mistakes caught by the loop
