@@ -705,3 +705,12 @@ a { color: inherit; text-decoration: none; }
 .saved-feedback-top small.replied { color: var(--pine-2); font-weight: 700; }
 .voice-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 6px; }
 .voice-actions small { color: #cfe1d6; font-size: 12px; }
+/* "Concerns you" strip */
+.concerns-you { margin: 0 0 18px; padding: 12px 14px; border: 1px solid #e3c9a8; border-left: 4px solid #c9955c; border-radius: 12px; background: #fdf6ec; }
+.concerns-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.concerns-head small { color: #8a5a22; font-size: 11px; }
+.concerns-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; padding: 9px 10px; margin-top: 6px; border: 1px solid #f0dcc0; border-radius: 10px; background: #fff; text-align: left; cursor: pointer; font: inherit; color: var(--ink); }
+.concerns-row:hover { border-color: #c9955c; }
+.concerns-topic { padding: 4px 8px; border-radius: 999px; background: #fbeedc; color: #8a5a22; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.concerns-row strong { display: block; font-size: 14px; color: var(--pine-2); }
+.concerns-row small { color: var(--muted); font-size: 11px; }

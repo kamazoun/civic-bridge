@@ -85,6 +85,7 @@ const HELP = {
     groups: "A group is everyone in your country whose profile lists the same topic. You see a count and a conversation, never a member list.",
     anonymous: "Posts as “A resident of <your area> (<your first topic>)”. Your account is never attached to the post.",
     voice: "Not an assistant: nothing talks back. One button reads the record aloud (your phone's own voices), the other turns your spoken words into text in the box. Your question still goes to a human office.",
+    concerns_you: "Notices published in the last seven days on a topic that is in your profile. The topic shown is the reason. Everything else is still in the list below — this only lifts what is likely to matter to you.",
     questions: "Questions residents sent to this office through the record. They are public, so the office's answer — or its silence — is visible to everyone. The office replies with its right of reply.",
     home: "Your front page. Top: the records most relevant to you. Right: the offices responsible in your area. Below: everything on the record for your area, newest first.",
     public_view: "You are reading without an account. Everything is visible; sign in only when you want to ask an office, comment, vote or join a group.",
@@ -141,6 +142,7 @@ const HELP = {
     groups: "Un groupe, c’est toutes les personnes de votre pays dont le profil mentionne le même thème. Vous voyez un nombre et une conversation, jamais une liste de membres.",
     anonymous: "Publie en tant que « Un·e résident·e de <votre zone> (<votre premier thème>) ». Votre compte n’est jamais attaché au message.",
     voice: "Pas un assistant : rien ne vous répond. Un bouton lit la fiche à voix haute (les voix de votre téléphone), l’autre transforme vos mots dits en texte dans le champ. Votre question va toujours à un bureau humain.",
+    concerns_you: "Les avis publiés ces sept derniers jours sur un thème de votre profil. Le thème affiché en est la raison. Tout le reste est toujours dans la liste en dessous — ceci ne fait que remonter ce qui a des chances de vous concerner.",
     questions: "Les questions que les résidents ont envoyées à ce bureau via la fiche. Elles sont publiques : la réponse du bureau — ou son silence — est visible de tous. Le bureau répond par son droit de réponse.",
     home: "Votre page d’accueil. En haut : les fiches les plus pertinentes pour vous. À droite : les bureaux responsables de votre zone. En bas : tout ce qui est au dossier pour votre zone, du plus récent au plus ancien.",
     public_view: "Vous consultez sans compte. Tout est visible ; connectez-vous seulement pour interroger un bureau, commenter, voter ou rejoindre un groupe.",
@@ -232,6 +234,8 @@ const STRINGS = {
     group_records_eyebrow: "RECORDS FOR THIS GROUP",
     group_records_title: "What is on the record for this topic.",
     group_records_body: "Every notice and record in your area that concerns this topic, newest first.",
+    share_group: "Invite people to this group",
+    share_group_note: "WhatsApp, SMS or a link — the group opens directly.",
     group_no_records: "No records on this topic in your area yet.",
     lands_on_eyebrow: "WHO ELSE THIS LANDS ON",
     lands_on_body: (n, topic, area) => `${n} people in your country list ${topic} in their profile. You are not working this out alone.`,
@@ -756,7 +760,10 @@ const STRINGS = {
     profession_group_7: "Business & professions",
     profession_group_8: "Home & other",
     recommended_eyebrow: "RECOMMENDED FOR YOU",
-    matches_profile: "Matches your profile",
+    matches_profile: "Concerns you",
+    concerns_you_eyebrow: "NEW · CONCERNS YOU",
+    concerns_you_note: "Published this week, on a topic in your profile",
+    toast_concerns_you: (title) => `New notice that concerns you: ${title}`,
     sorted_for_profile: (profession) => `Sorted for ${profession}`,
     // Perspectives (resident-added)
     add_perspective_label: "Add your perspective",
@@ -780,9 +787,9 @@ const STRINGS = {
     machine_translation_badge: "Machine translation via local Ollama — not yet reviewed.",
     show_original: "Show original",
     // Settings
-    nav_settings: "Settings",
-    settings_eyebrow: "SETTINGS",
-    settings_title: "Make this yours.",
+    nav_settings: "Who you are",
+    settings_eyebrow: "WHO YOU ARE",
+    settings_title: "Tell the app who it is talking to.",
     settings_body: "You describe who you are; the app shows what it understood, and you correct it. That profile changes the order of what you see — never what you can see. Saved in this browser; when you sign in, your topics also travel with your account so your groups follow you.",
     settings_scope_note: "This applies to this browser on this device. Sign in and it stays with your local account here; without signing in, it still applies for this session.",
     settings_name_label: "Your name (optional)",
@@ -894,6 +901,8 @@ const STRINGS = {
     group_records_eyebrow: "FICHES DE CE GROUPE",
     group_records_title: "Ce qui est au dossier sur ce thème.",
     group_records_body: "Chaque avis et fiche de votre zone qui concerne ce thème, du plus récent au plus ancien.",
+    share_group: "Inviter des gens dans ce groupe",
+    share_group_note: "WhatsApp, SMS ou un lien — le groupe s’ouvre directement.",
     group_no_records: "Aucune fiche sur ce thème dans votre zone pour l’instant.",
     lands_on_eyebrow: "QUI D’AUTRE EST CONCERNÉ",
     lands_on_body: (n, topic, area) => `${n} personnes de votre pays ont « ${topic} » dans leur profil. Vous n’êtes pas seul·e à devoir comprendre ceci.`,
@@ -1393,7 +1402,10 @@ const STRINGS = {
     profession_group_7: "Entreprise et professions",
     profession_group_8: "Foyer et autres",
     recommended_eyebrow: "RECOMMANDÉ POUR VOUS",
-    matches_profile: "Correspond à votre profil",
+    matches_profile: "Vous concerne",
+    concerns_you_eyebrow: "NOUVEAU · VOUS CONCERNE",
+    concerns_you_note: "Publié cette semaine, sur un thème de votre profil",
+    toast_concerns_you: (title) => `Nouvel avis qui vous concerne : ${title}`,
     sorted_for_profile: (profession) => `Trié pour ${profession}`,
     add_perspective_label: "Ajouter votre point de vue",
     perspective_title_placeholder: "Titre court, ex. « Accès de nuit »",
@@ -1413,9 +1425,9 @@ const STRINGS = {
     translation_unavailable: "La traduction nécessite un modèle Ollama local connecté. Voir le README pour CIVIC_BRIDGE_OLLAMA_MODEL.",
     machine_translation_badge: "Traduction automatique via Ollama local — pas encore relue.",
     show_original: "Afficher l'original",
-    nav_settings: "Paramètres",
-    settings_eyebrow: "PARAMÈTRES",
-    settings_title: "Personnalisez cet espace.",
+    nav_settings: "Qui vous êtes",
+    settings_eyebrow: "QUI VOUS ÊTES",
+    settings_title: "Dites à l’application à qui elle parle.",
     settings_body: "Vous dites qui vous êtes ; l’application montre ce qu’elle a compris, et vous corrigez. Ce profil change l’ordre de ce que vous voyez — jamais ce que vous pouvez voir. Enregistré dans ce navigateur ; connecté·e, vos thèmes suivent aussi votre compte pour que vos groupes vous suivent.",
     settings_scope_note: "Ceci s'applique à ce navigateur sur cet appareil. Si vous vous connectez, cela reste avec votre compte local ici ; sans connexion, cela s'applique quand même pour cette session.",
     settings_name_label: "Votre nom (optionnel)",
@@ -1684,11 +1696,11 @@ function getRecord() {
   return state.records.find((record) => record.id === state.recordId);
 }
 
-function showToast(message) {
+function showToast(message, duration = 3200) {
   toast.textContent = message;
   toast.classList.add("show");
-  window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2600);
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove("show"), duration);
 }
 
 function persistUser() {
@@ -1808,7 +1820,9 @@ function ingestPublisherNotices(notices) {
   if (!fresh.length) return;
   fresh.forEach((notice) => { state.publishedNotices.push(notice); state.publisherNoticeIds.add(notice.id); });
   applyAreaContext();
-  showToast(uiLang() === "fr" ? `${fresh.length} nouvel${fresh.length > 1 ? "s avis publiés" : " avis publié"} par les bureaux.` : `${fresh.length} new notice${fresh.length > 1 ? "s" : ""} published by the offices.`);
+  const forMe = fresh.filter((notice) => notice.country === state.dashboard.country && professionWeight(publisherRecord(notice)) > 0);
+  if (forMe.length) showToast(t("toast_concerns_you", forMe[0].title), 7000);
+  else showToast(uiLang() === "fr" ? `${fresh.length} nouvel${fresh.length > 1 ? "s avis publiés" : " avis publié"} par les bureaux.` : `${fresh.length} new notice${fresh.length > 1 ? "s" : ""} published by the offices.`);
   render();
 }
 
@@ -1975,7 +1989,7 @@ function showShareModal(target) {
 // Copy link uses the clipboard. The server only counts that a share happened.
 async function submitShare(channel) {
   if (!state.shareTarget) return;
-  const url = `${location.origin}${location.pathname}${state.view === "record" && state.recordId ? `#record/${encodeURIComponent(state.recordId)}` : ""}`;
+  const url = state.shareTarget.url || `${location.origin}${location.pathname}${state.view === "record" && state.recordId ? `#record/${encodeURIComponent(state.recordId)}` : ""}`;
   const text = `${state.shareTarget.title} — ${url}`;
   if (channel === "WhatsApp") window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   else if (channel === "SMS") location.href = `sms:?&body=${encodeURIComponent(text)}`;
@@ -2192,6 +2206,7 @@ function renderHome() {
     ${hasArea ? "" : `<section class="empty-state setup-state" style="margin-bottom:20px"><div class="empty-icon">⌖</div><h2>${t("choose_area_first_title")}</h2><p>${t("home_body_no_area")}</p><button class="primary-btn" data-route="locations">${t("choose_location")}</button></section>`}
     <section class="news-layout">
       <div class="news-main">
+        ${concernsYouStrip()}
         ${lead ? `
           <div class="for-you-head"><span class="eyebrow">${hasProfession() ? t("recommended_eyebrow") : t("latest_eyebrow")} ${help("for_you")}</span></div>
           <button class="lead-story" data-record="${esc(lead.id)}">
@@ -2280,6 +2295,7 @@ async function renderGroupDetail() {
     <button class="breadcrumb" data-route="groups">${t("back_to_groups")}</button>
     <section class="page-head"><div><span class="eyebrow">${t("group_eyebrow")}</span><h1>${esc(names[topic] || topic)} · ${esc(state.dashboard.area)}</h1><p>${t("group_intro", group.members, esc(state.dashboard.country))}</p>${group.localities.length ? `<p class="field-hint">${t("group_localities", esc(group.localities.join(" · ")))}</p>` : ""}</div><div class="head-note"><strong>${group.members}</strong><span>${t("group_members_label")}</span></div></section>
     ${mine ? "" : `<div class="addressed-to">${t("group_not_in_profile")} <button class="text-btn" data-route="settings">${t("why_correct_it")}</button></div>`}
+    <div class="button-row" style="margin:6px 0 14px"><button class="secondary-btn" data-action="share-group" data-share-title="${esc(names[topic] || topic)} · ${esc(state.dashboard.area)}">${t("share_group")}</button><span class="field-hint">${t("share_group_note")}</span></div>
     <section class="section-grid rep-detail-grid">
       <article class="panel"><span class="eyebrow">${t("group_posts_eyebrow")} ${help("group_conversation")}</span><h2>${t("group_posts_title")}</h2>
         <div class="comment-form"><label class="form-label" for="group-message">${t("group_post_label")}</label><textarea id="group-message" class="feedback-textarea" placeholder="${t("group_post_placeholder")}"></textarea><label class="anon-toggle"><input type="checkbox" id="group-anonymous" /> ${t("post_anonymously", esc(anonymousPersona()))} ${help("anonymous")}</label><div class="button-row"><button class="primary-btn" id="submit-group-post">${t("group_post_button")}</button>${!state.user ? `<span class="auth-required">${t("auth_required_note")}</span>` : ""}</div></div>
@@ -2318,6 +2334,22 @@ function wireRepresentativeControls() {
   document.querySelectorAll("[data-follow-rep]").forEach((button) => button.addEventListener("click", () => toggleFollow(button.dataset.followRep)));
 }
 
+
+// Notices published in the last seven days that match the profile, with the
+// topic that makes them relevant. This is where "it concerns you" pops.
+function concernsYouStrip() {
+  if (!hasProfession()) return "";
+  const names = TOPIC_NAMES[uiLang()] || TOPIC_NAMES.en;
+  const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
+  const hits = state.publishedNotices
+    .filter((notice) => notice.country === state.dashboard.country && Date.parse(notice.published_at || "") > cutoff)
+    .map((notice) => ({ notice, topic: issueTopic(publisherRecord(notice)), score: professionWeight(publisherRecord(notice)) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || Date.parse(b.notice.published_at) - Date.parse(a.notice.published_at))
+    .slice(0, 3);
+  if (!hits.length) return "";
+  return `<section class="concerns-you"><div class="concerns-head"><span class="eyebrow">${t("concerns_you_eyebrow")} ${help("concerns_you")}</span><small>${t("concerns_you_note")}</small></div>${hits.map(({ notice, topic }) => `<button class="concerns-row" data-record="${esc(notice.id)}"><span class="concerns-topic">${esc(names[topic] || topic)}</span><span><strong>${esc(notice.title)}</strong><small>${esc(notice.office || notice.responsible_office || "")} · ${esc(formatActivityDate(notice.published_at))}</small></span><span class="watch-arrow">↗</span></button>`).join("")}</section>`;
+}
 
 function recordListMarkup(issues) {
   return `
@@ -3046,6 +3078,7 @@ function bindAppActions() {
   });
   document.querySelectorAll("#app [data-action]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
+    if (button.dataset.action === "share-group") showShareModal({ type: "group", title: button.dataset.shareTitle, url: `${location.origin}${location.pathname}#group/${encodeURIComponent(state.groupTopic || "")}` });
     if (button.dataset.action === "share-source" || button.dataset.action === "share-representative") {
       const targetType = button.dataset.action === "share-representative" ? t("representative_profile") : (button.dataset.shareType || t("civic_source_fallback"));
       const targetTitle = button.dataset.shareTitle || getRecord()?.title || t("civic_update_fallback");
@@ -3178,6 +3211,8 @@ async function boot() {
     }
     if (state.records.some((record) => record.id === id)) setRoute("record", id);
   }
+  const groupLink = location.hash.match(/^#group\/(.+)$/);
+  if (groupLink && state.dashboard.area) { state.groupTopic = decodeURIComponent(groupLink[1]); state.group = null; setRoute("group"); }
   if (shouldAutoDetect) {
     autoDetectLocation().then((detected) => {
       if (!detected || !detected.locality || state.dashboard.area) return;
